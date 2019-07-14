@@ -24,8 +24,8 @@ namespace NCommon
 	const int MAX_USER_PASSWORD_SIZE = 16;
 	struct PktLogInReq
 	{
-		char szID[MAX_USER_ID_SIZE+1] = { 0, };
-		char szPW[MAX_USER_PASSWORD_SIZE+1] = { 0, };
+		char SzID[MAX_USER_ID_SIZE+1] = { 0, };
+		char SzPW[MAX_USER_PASSWORD_SIZE+1] = { 0, };
 	};
 
 	struct PktLogInRes : PktBase
@@ -33,17 +33,15 @@ namespace NCommon
 	};
 
 	
-	//- 캐릭터 선택. 동물 20(동물별로 옷 5개)
+	//- 캐릭터 선택. 총 23 * 7개 캐릭터 
 	struct PktSelCharacterReq
 	{
-		unsigned short SelAnimal;
-		unsigned short SelClothes;
+		unsigned short CharCode;
 	};
 
 	struct PktSelCharacterRes : PktBase
 	{
-		unsigned short SelAnimal;
-		unsigned short SelClothes;
+		unsigned short CharCode;
 	};
 	
 	//- 방 입장 - 방번호 선택
