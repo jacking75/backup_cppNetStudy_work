@@ -13,23 +13,19 @@ namespace NCommon
 		unsigned char Reserve;
 	};
 
-	struct PktBase
-	{
-		short ErrorCode = (short)ERROR_CODE::NONE;
-		void SetError(ERROR_CODE error) { ErrorCode = (short)error; }
-	};
-
+	
 	//- 로그인 요청
 	const int MAX_USER_ID_SIZE = 16;
 	const int MAX_USER_PASSWORD_SIZE = 16;
 	struct PktLogInReq
 	{
-		char SzID[MAX_USER_ID_SIZE+1] = { 0, };
-		char SzPW[MAX_USER_PASSWORD_SIZE+1] = { 0, };
+		char szID[MAX_USER_ID_SIZE+1] = { 0, };
+		char szPW[MAX_USER_PASSWORD_SIZE+1] = { 0, };
 	};
 
-	struct PktLogInRes : PktBase
+	struct PktLogInRes : PktHeader
 	{
+		short ErrorCode = (short)ERROR_CODE::NONE;
 	};
 
 	
@@ -39,8 +35,9 @@ namespace NCommon
 		unsigned short CharCode;
 	};
 
-	struct PktSelCharacterRes : PktBase
+	struct PktSelCharacterRes : PktHeader
 	{
+		short ErrorCode = (short)ERROR_CODE::NONE;
 		unsigned short CharCode;
 	};
 	
@@ -164,5 +161,5 @@ namespace NCommon
 #pragma pack(pop)
 
 
-	
+	const short PacketHeaderSize = sizeof(PktHeader);
 }
