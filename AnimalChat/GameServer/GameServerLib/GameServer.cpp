@@ -19,17 +19,17 @@ ChatServer::~ChatServer()
 void ChatServer::Run(void)
 {
 	NetLib::NetConfig netConfig;
-	netConfig.m_PortNumber = 11021;
+	netConfig.m_PortNumber = 32452;
 	netConfig.m_WorkThreadCount = 4;
 	netConfig.m_MaxRecvOverlappedBufferSize = 1024;
 	netConfig.m_MaxSendOverlappedBufferSize = 1024;
-	netConfig.m_MaxRecvConnectionBufferCount = 1024;
-	netConfig.m_MaxSendConnectionBufferCount = 1024;
+	netConfig.m_MaxRecvConnectionBufferCount = 4019;
+	netConfig.m_MaxSendConnectionBufferCount = 4019;
 	netConfig.m_MaxPacketSize = 1024;
 	netConfig.m_MaxConnectionCount = 1024;
 	netConfig.m_MaxMessagePoolCount = 1024;
 	netConfig.m_ExtraMessagePoolCount = 128;
-	netConfig.m_PerformancePacketMillisecondsTime = 500;
+	netConfig.m_PerformancePacketMillisecondsTime = 0;
 	netConfig.m_PostMessagesThreadsCount = 1;
 
 	m_IOCPServerNet = new NetLib::IOCPServerNet;
@@ -40,9 +40,7 @@ void ChatServer::Run(void)
 		m_MaxPacketSize = m_IOCPServerNet->GetMaxPacketSize();
 		m_MaxConnectionCount = m_IOCPServerNet->GetMaxConnectionCount();
 		m_PostMessagesThreadsCount = m_IOCPServerNet->GetPostMessagesThreadsCount();
-
-		m_IsEchoTestMode = (m_PostMessagesThreadsCount > 1) ? false : true;
-
+				
 		if (Init())
 		{
 			m_IsSuccessStartServer = true;
@@ -290,6 +288,7 @@ void ChatServer::ProcessPacketSelectCharacter(INT32 connectionIndex, char* pBody
 	resPacket.TotalSize = sizeof(NCommon::PktSelCharacterRes);
 	resPacket.Id = (UINT16)NCommon::PACKET_ID::SEL_CHARECTER_RES;
 	resPacket.ErrorCode = (INT16)NCommon::ERROR_CODE::NONE;
+	resPacket.CharCode = pReqPacket->CharCode;
 
 	//TODO
 	// 로그인 상태인 경우만 ok

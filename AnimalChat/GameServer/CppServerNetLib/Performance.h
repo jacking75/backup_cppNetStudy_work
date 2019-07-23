@@ -26,8 +26,11 @@ namespace NetLib
 		{
 			m_CheckPerformanceMilliseconds = milliseconds;
 
-			SetCheckPerformance(TRUE);
-			m_PerformanceThread = std::thread(&Performance::CheckPerformanceThread, this);
+			if (m_CheckPerformanceMilliseconds > 0)
+			{
+				SetCheckPerformance(TRUE);
+				m_PerformanceThread = std::thread(&Performance::CheckPerformanceThread, this);
+			}
 		}
 
 		void CheckPerformanceThread(void)

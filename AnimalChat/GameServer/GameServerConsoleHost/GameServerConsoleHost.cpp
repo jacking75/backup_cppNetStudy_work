@@ -8,12 +8,12 @@
 
 int main(void)
 {
-	NetLib::MiniDump::Begin();
+	/*NetLib::MiniDump::Begin();
 	if (NetLib::MiniDump::CreateDirectories() == false)
 	{
 		printf("Fail MiniDump::CreateDirectories() \r\n");
 		return 0;
-	}
+	}*/
 
 	NetLib::LogFuncPtr = [](const int eLogInfoType, const char* szLogMsg) {
 		UNREFERENCED_PARAMETER(eLogInfoType);
@@ -23,6 +23,6 @@ int main(void)
 	ChatServer Server;
 	Server.Run();
 
-	NetLib::MiniDump::End();
+	//NetLib::MiniDump::End();
 	return 0;
 }
