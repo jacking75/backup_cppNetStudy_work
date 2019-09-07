@@ -24,7 +24,8 @@ namespace NetLib
 	
 	struct OVERLAPPED_EX;
 	class Connection;
-	class MessagePool;
+	//class MessagePool;
+
 
 	class IOCPServerNet
 	{
@@ -115,12 +116,7 @@ namespace NetLib
 
 
 			DestoryConnections();
-
-			if (m_pMsgPool != nullptr)
-			{
-				delete m_pMsgPool;
-			}
-
+						
 			LogFuncPtr((int)LogLevel::Info, "IOCPServer::EndServer - Completion");
 		}
 
@@ -261,7 +257,7 @@ namespace NetLib
 
 		bool CreateMessageManager()
 		{
-			m_pMsgPool = new MessagePool(m_NetConfig.MaxMessagePoolCount, m_NetConfig.ExtraMessagePoolCount);
+			m_pMsgPool = std::make_unique<MessagePool>(m_NetConfig.MaxMessagePoolCount, m_NetConfig.ExtraMessagePoolCount); 
 			if (!m_pMsgPool->CheckCreate())
 			{
 				return false;
@@ -775,10 +771,11 @@ namespace NetLib
 			
 		HANDLE m_hWorkIOCP = INVALID_HANDLE_VALUE;
 		HANDLE m_hLogicIOCP = INVALID_HANDLE_VALUE;
+
 		bool m_IsRunWorkThread = true;
 		std::vector<std::unique_ptr<std::thread>> m_WorkThreads;
 
-		MessagePool* m_pMsgPool = nullptr;
+		std::unique_ptr<MessagePool> m_pMsgPool;
 
 		std::unique_ptr<Performance> m_Performance;
 	};

@@ -13,13 +13,15 @@ namespace NetLib
 
 		CustomSpinLockCriticalSection()
 		{
-			InitializeCriticalSectionAndSpinCount(&m_CS, SPINLOCK_COUNT);
+			(void)InitializeCriticalSectionAndSpinCount(&m_CS, SPINLOCK_COUNT);
 		}
+
 		~CustomSpinLockCriticalSection()
 		{
 			DeleteCriticalSection(&m_CS);
 		}
 	};
+
 
 	class SpinLockGuard
 	{
@@ -29,6 +31,7 @@ namespace NetLib
 		{
 			EnterCriticalSection(m_pSpinCS);
 		}
+
 		~SpinLockGuard()
 		{
 			LeaveCriticalSection(m_pSpinCS);
