@@ -134,7 +134,6 @@
     <ClCompile Include="PacketManager.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="User.cpp" />
-    <ClCompile Include="UserManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Define.h" />

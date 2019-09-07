@@ -14,9 +14,18 @@ namespace ChatServerLib
 		UserManager() = default;
 		~UserManager() = default;
 
-		void Init();
+		void Init()
+		{
+			UserObjPool = std::vector<User*>(MAX_USER_CNT);
 
-		int GetCurrentUserCnt() { return current_user_cnt; } //TODO 최흥배 코드가 보기 좋도록 함수 간에 간격을 준다. 다른 파일도 같이 적용하기
+			for (int i = 0; i < MAX_USER_CNT; i++)
+			{
+				UserObjPool[i] = new User();
+				UserObjPool[i]->Init(i);
+			}
+		}
+
+		int GetCurrentUserCnt() { return current_user_cnt; } 
 
 		int GetMaxUserCnt() { return MAX_USER_CNT; }
 		
@@ -30,13 +39,38 @@ namespace ChatServerLib
 			}
 		}
 
-		int AddUser(char* userID, int conn_idx);
-		
-		int FindUserByID(char* userID);
-		
-		void DeleteUserInfo(User* deleteUser);
+		int AddUser(char* userID, int conn_idx)
+		{
+			//TODO 최흥배 유저 중복 조사하기
 
-		User* GetUserByConnIdx(INT32 conn_idx);
+			int user_idx = conn_idx;
+
+			UserObjPool[user_idx]->SetLogin(conn_idx, userID);
+			UserDictionary.insert(std::pair< char*, int>(userID, conn_idx));
+
+			return 0;
+		}
+		
+		int FindUserByID(char* userID)
+		{
+			if (auto res = UserDictionary.find(userID); res != UserDictionary.end())
+			{
+				return (*res).second;
+			}
+			
+			return -1;
+		}
+		
+		void DeleteUserInfo(User* deleteUser)
+		{
+			UserDictionary.erase(deleteUser->GetUserId());
+			deleteUser->Clear();
+		}
+
+		User* GetUserByConnIdx(INT32 conn_idx)
+		{
+			return UserObjPool[conn_idx];
+		}
 
 
 	private:

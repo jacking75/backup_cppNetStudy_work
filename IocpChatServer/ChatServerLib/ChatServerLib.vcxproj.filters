@@ -23,9 +23,6 @@
     <ClCompile Include="User.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="UserManager.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="Room.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
