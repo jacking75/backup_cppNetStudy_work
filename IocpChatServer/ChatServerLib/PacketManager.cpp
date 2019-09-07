@@ -45,8 +45,8 @@ namespace ChatServerLib
 
 		auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pBuf);
 
-		char* userID = pLoginReqPacket->UserID;
-		printf("requested user id = %s\n", userID);
+		auto pUserID = pLoginReqPacket->UserID;
+		printf("requested user id = %s\n", pUserID);
 
 		LOGIN_RESPONSE_PACKET loginResPacket;
 		loginResPacket.PacketId = (UINT16)PACKET_ID::LOGIN_RESPONSE;
@@ -61,11 +61,11 @@ namespace ChatServerLib
 		}
 
 		//여기에서 이미 접속된 유저인지 확인하고, 접속된 유저라면 실패한다.
-		if (m_pUserManager->FindUserByID(userID) == -1) 
+		if (m_pUserManager->FindUserByID(pUserID) == -1) 
 		{ 
 			//접속중이 아닌 유저라면
 			//유저를 관리하는 객체에 넣는다.
-			m_pUserManager->AddUser(userID, connIndex);
+			m_pUserManager->AddUser(pUserID, connIndex);
 			loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
 		}
 		else 
@@ -76,11 +76,7 @@ namespace ChatServerLib
 			return;
 		}
 
-		SendPacketFunc(connIndex, &loginResPacket, sizeof(LOGIN_RESPONSE_PACKET));
-		//스택할당을 하면 위의 함수에서 RingBuffer에 공간을 복사함. 따라서 동적할당처럼 관리할 필요가 없어짐
-
-		//해당 클라이언트와 연결된 세션에 로그인 정보를 저장한다.
-
+		SendPacketFunc(connIndex, &loginResPacket, sizeof(LOGIN_RESPONSE_PACKET));				
 	}
 
 
@@ -90,15 +86,15 @@ namespace ChatServerLib
 		UNREFERENCED_PARAMETER(copySize);
 
 		auto pRoomEnterReqPacket = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(pBuf);
-		auto reqUser = m_pUserManager->GetUserByConnIdx(connIndex);
+		auto pReqUser = m_pUserManager->GetUserByConnIdx(connIndex);
 
-		if (!reqUser || reqUser == nullptr) 
+		if (!pReqUser || pReqUser == nullptr) 
 		{
 			return;
 		}
 
-		auto roomNum = pRoomEnterReqPacket->RoomIndex;
-		auto enterRoom = m_pRoomManager->GetRoomByIndex(roomNum);
+		auto roomNum = pRoomEnterReqPacket->RoomNumber;
+		auto enterRoom = m_pRoomManager->GetRoomByNumber(roomNum);
 
 		if (enterRoom == nullptr) 
 		{
@@ -129,7 +125,7 @@ namespace ChatServerLib
 
 		if (m_pRoomManager != nullptr) 
 		{
-			roomEnterResPacket.Result = m_pRoomManager->EnterUser(pRoomEnterReqPacket->RoomIndex, reqUser);
+			roomEnterResPacket.Result = m_pRoomManager->EnterUser(pRoomEnterReqPacket->RoomNumber, pReqUser);
 		}
 		else 
 		{
@@ -192,7 +188,7 @@ namespace ChatServerLib
 		}
 
 		//TODO Room안의 UserList객체의 값 확인하기
-		auto chatRoom = m_pRoomManager->GetRoomByIndex(roomNum);
+		auto chatRoom = m_pRoomManager->GetRoomByNumber(roomNum);
 
 		chatRoom->NotifyChat(connIndex, reqUser->GetUserId().c_str(), pRoomChatReqPacketet->Message);
 		roomChatResPacket.Result = (INT16)ERROR_CODE::NONE;

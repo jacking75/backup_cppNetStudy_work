@@ -102,7 +102,7 @@ namespace Common
 	const int MAX_ROOM_TITLE_SIZE = 16;
 	struct ROOM_ENTER_REQUEST_PACKET : public PACKET_HEADER
 	{
-		INT32 RoomIndex;
+		INT32 RoomNumber;
 	};
 
 	struct ROOM_ENTER_RESPONSE_PACKET : public PACKET_HEADER 
