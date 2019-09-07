@@ -92,49 +92,15 @@ namespace ChatServerLib
 		{
 			return;
 		}
-
-		auto roomNum = pRoomEnterReqPacket->RoomNumber;
-		auto enterRoom = m_pRoomManager->GetRoomByNumber(roomNum);
-
-		if (enterRoom == nullptr) 
-		{
-			return;
-		}
-
-
+				
 		ROOM_ENTER_RESPONSE_PACKET roomEnterResPacket;
 		roomEnterResPacket.PacketId = (UINT16)PACKET_ID::ROOM_ENTER_RESPONSE;
 		roomEnterResPacket.PacketLength = sizeof(ROOM_ENTER_RESPONSE_PACKET);
-
-		/*if ( reqUser->GetUserId().compare( enterRoom->GetAuthUser(0) ) == 0 ) 
-		{
-			strncpy_s(roomEnterResPacket.RivalUserID ,enterRoom->GetAuthUser(1).c_str(), MAX_USER_ID_LEN);
-		}
-		else if (reqUser->GetUserId().compare(enterRoom->GetAuthUser(1)) == 0) 
-		{
-			strncpy_s(roomEnterResPacket.RivalUserID, enterRoom->GetAuthUser(0).c_str(), MAX_USER_ID_LEN);
-		}
-		else 
-		{
-			(UINT16)ERROR_CODE::ENTER_ROOM_NOT_FINDE_USER;
-			SendPacketFunc(connIndex, &roomEnterResPacket, sizeof(ROOM_ENTER_RESPONSE_PACKET));
-			return;
-		}*/
-
-
-
-		if (m_pRoomManager != nullptr) 
-		{
-			roomEnterResPacket.Result = m_pRoomManager->EnterUser(pRoomEnterReqPacket->RoomNumber, pReqUser);
-		}
-		else 
-		{
-			roomEnterResPacket.Result = (UINT16)ERROR_CODE::USER_MGR_INVALID_USER_INDEX;
-		}
+				
+		roomEnterResPacket.Result = m_pRoomManager->EnterUser(pRoomEnterReqPacket->RoomNumber, pReqUser);
 
 		SendPacketFunc(connIndex, &roomEnterResPacket, sizeof(ROOM_ENTER_RESPONSE_PACKET));
 		printf("Response Packet Sended");
-
 	}
 
 
@@ -149,20 +115,10 @@ namespace ChatServerLib
 
 		auto reqUser = m_pUserManager->GetUserByConnIdx(connIndex);
 		auto roomNum = reqUser->GetCurrentRoom();
-
-		//TODO 오류
-		if (roomNum < 0 || roomNum > (INT32)m_pRoomManager->GetMaxRoomCount()) 
-		{
-			//유저가 ChatRoom에 들어가있지 않거나 값이 잘못된 경우
-			roomLeaveResPacket.Result = (UINT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_INDEX;
-			return;
-		}
-
+				
 		//TODO Room안의 UserList객체의 값 확인하기
-		m_pRoomManager->LeaveUser(roomNum, reqUser);
-		roomLeaveResPacket.Result = (UINT16)ERROR_CODE::NONE;
+		roomLeaveResPacket.Result = m_pRoomManager->LeaveUser(roomNum, reqUser);
 		SendPacketFunc(connIndex, &roomLeaveResPacket, sizeof(ROOM_LEAVE_RESPONSE_PACKET));
-
 	}
 
 
@@ -175,42 +131,37 @@ namespace ChatServerLib
 		ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
 		roomChatResPacket.PacketId = (UINT16)PACKET_ID::ROOM_CHAT_RESPONSE;
 		roomChatResPacket.PacketLength = sizeof(ROOM_CHAT_RESPONSE_PACKET);
+		roomChatResPacket.Result = (INT16)ERROR_CODE::NONE;
 
 		auto reqUser = m_pUserManager->GetUserByConnIdx(connIndex);
 		auto roomNum = reqUser->GetCurrentRoom();
-
-		//TODO 오류
-		if (roomNum < 0 || roomNum >(INT32)m_pRoomManager->GetMaxRoomCount())
+				
+		auto pRoom = m_pRoomManager->GetRoomByNumber(roomNum);
+		if (pRoom == nullptr)
 		{
-			//유저가 ChatRoom에 들어가있지 않거나 값이 잘못된 경우
-			roomChatResPacket.Result = (UINT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_INDEX;
+			roomChatResPacket.Result = (INT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_NUMBER;
+			SendPacketFunc(connIndex, &roomChatResPacket, sizeof(ROOM_CHAT_RESPONSE_PACKET));
 			return;
 		}
-
-		//TODO Room안의 UserList객체의 값 확인하기
-		auto chatRoom = m_pRoomManager->GetRoomByNumber(roomNum);
-
-		chatRoom->NotifyChat(connIndex, reqUser->GetUserId().c_str(), pRoomChatReqPacketet->Message);
-		roomChatResPacket.Result = (INT16)ERROR_CODE::NONE;
 		
-		//TODO NofifyChat도 오류값을 분류하면 그에 따른 ERROR_CODE값을 응답패킷의 Result로 보낸다.
 		SendPacketFunc(connIndex, &roomChatResPacket, sizeof(ROOM_CHAT_RESPONSE_PACKET));
 
+		pRoom->NotifyChat(connIndex, reqUser->GetUserId().c_str(), pRoomChatReqPacketet->Message);		
 	}		   
 
 	void PacketManager::ClearConnectionInfo(INT32 connIndex) 
 	{
-		auto reqUser = m_pUserManager->GetUserByConnIdx(connIndex);
+		auto pReqUser = m_pUserManager->GetUserByConnIdx(connIndex);
 
-		if (reqUser->GetDomainState() == User::DOMAIN_STATE::ROOM) 
+		if (pReqUser->GetDomainState() == User::DOMAIN_STATE::ROOM) 
 		{
-			auto roomNum = reqUser->GetCurrentRoom();
-			m_pRoomManager->LeaveUser(roomNum, reqUser);
+			auto roomNum = pReqUser->GetCurrentRoom();
+			m_pRoomManager->LeaveUser(roomNum, pReqUser);
 		}
 
-		if (reqUser->GetDomainState() != User::DOMAIN_STATE::NONE) 
+		if (pReqUser->GetDomainState() != User::DOMAIN_STATE::NONE) 
 		{
-			m_pUserManager->DeleteUserInfo(reqUser);
+			m_pUserManager->DeleteUserInfo(pReqUser);
 		}
 	}
 

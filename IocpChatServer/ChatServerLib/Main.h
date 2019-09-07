@@ -4,6 +4,8 @@
 
 #include "../../IocpNetLib/IOCPServerNet.h"
 #include "Define.h"
+#include "UserManager.h"
+#include "RoomManager.h"
 #include "PacketManager.h"
 
 //TODO printf 함수로 로그 찍는 것을 정상적인 로그로 변경해야 한다

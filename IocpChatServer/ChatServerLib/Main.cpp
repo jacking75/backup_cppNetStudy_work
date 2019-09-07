@@ -31,11 +31,8 @@ namespace ChatServerLib
 		m_pUserManager->Init();
 
 		m_pRoomManager->SendPacketFunc = sendPacketFunc;
-		m_pRoomManager->Init();
+		m_pRoomManager->Init(m_Config.StartRoomNummber, m_Config.MaxRoomCount);
 
-				
-		//서버정보를 초기화하고 UserManager
-		
 		return 0;
 	}
 		

@@ -19,10 +19,10 @@ namespace ChatServerLib
 
 	}
 
-	//TODO 일단 void형으로 하다가 여러 ErrorCode가 필요하다면 이를 담당하는 Enum을 만들기
-	//TODO 최흥배 유저 중복 조사하기
-	int UserManager::AddUser(char* userID, int conn_idx)
+	int UserManager::AddUser(char* userID, int conn_idx)	
 	{
+		//TODO 최흥배 유저 중복 조사하기
+
 		int user_idx = conn_idx;
 
 		UserObjPool[user_idx]->SetLogin(conn_idx, userID);

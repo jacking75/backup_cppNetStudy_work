@@ -25,22 +25,10 @@ namespace Common
 
 		ROOM_CHAT_REQUEST = 214,
 		ROOM_CHAT_RESPONSE = 215,
-		ROOM_CHAT_NOTIFY = 216,
-
-		GAME_START_REQUEST = 301,
-		GAME_START_RESPONSE = 302,
-		GAME_START_NOTIFY = 303,
-
-		GAME_SYNC_REQUEST = 304,
-		GAME_SYNC_NOTIFY = 305,
-
-		GAME_END_REQUEST = 311,
-		GAME_END_RESPONSE = 312,
-		GAME_END_NOTIFY = 313,
-
-		NTF_MATCHING_RESULT = 401,
+		ROOM_CHAT_NOTIFY = 216,	
 	};
 
+	//TODO 에러 코드 중복 사용하지 않도록 한다
 	enum class ERROR_CODE : UINT16
 	{
 		NONE = 0,
@@ -65,7 +53,7 @@ namespace Common
 
 		LEAVE_ROOM_INVALID_ROOM_INDEX = 71,
 
-		CHAT_ROOM_INVALID_ROOM_INDEX = 81,
+		CHAT_ROOM_INVALID_ROOM_NUMBER = 81,
 	};
 
 	
@@ -107,7 +95,7 @@ namespace Common
 
 	struct ROOM_ENTER_RESPONSE_PACKET : public PACKET_HEADER 
 	{
-		UINT16 Result;
+		INT16 Result;
 		char RivalUserID[MAX_USER_ID_LEN + 1] = {0, };
 	};
 
@@ -120,7 +108,7 @@ namespace Common
 
 	struct ROOM_LEAVE_RESPONSE_PACKET : public PACKET_HEADER 
 	{
-		UINT16 Result;
+		INT16 Result;
 	};
 
 
@@ -134,7 +122,7 @@ namespace Common
 
 	struct ROOM_CHAT_RESPONSE_PACKET : public PACKET_HEADER
 	{
-		UINT16 Result;
+		INT16 Result;
 	};
 
 	struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER

@@ -133,7 +133,6 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="PacketManager.cpp" />
     <ClCompile Include="Room.cpp" />
-    <ClCompile Include="RoomManager.cpp" />
     <ClCompile Include="User.cpp" />
     <ClCompile Include="UserManager.cpp" />
   </ItemGroup>
@@ -144,6 +143,7 @@
     <ClInclude Include="Packet.h" />
     <ClInclude Include="PacketManager.h" />
     <ClInclude Include="Room.h" />
+    <ClInclude Include="RoomManager.h" />
     <ClInclude Include="User.h" />
     <ClInclude Include="UserManager.h" />
   </ItemGroup>
