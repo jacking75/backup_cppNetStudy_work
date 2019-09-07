@@ -9,7 +9,7 @@ namespace ChatServerLib
 		RoomManager() = default;
 		~RoomManager() = default;
 
-		void Init(const INT32 beginRoomNumber, const INT32 maxRoomCount)
+		void Init(const INT32 beginRoomNumber, const INT32 maxRoomCount, const INT32 maxRoomUserCount)
 		{
 			m_BeginRoomNumber = beginRoomNumber;
 			m_MaxRoomCount = maxRoomCount;
@@ -21,7 +21,7 @@ namespace ChatServerLib
 			{
 				m_RoomList[i] = new Room();
 				m_RoomList[i]->SendPacketFunc = SendPacketFunc;
-				m_RoomList[i]->Init((i+ beginRoomNumber));
+				m_RoomList[i]->Init((i+ beginRoomNumber), maxRoomUserCount);
 			}
 		}
 
@@ -39,15 +39,17 @@ namespace ChatServerLib
 			return pRoom->EnterUser(pUser);
 		}
 		
-		UINT16 LeaveUser(INT32 roomNumber, User* pUser)
+		INT16 LeaveUser(INT32 roomNumber, User* pUser)
 		{
 			auto pRoom = GetRoomByNumber(roomNumber);
 			if (pRoom == nullptr)
 			{
-				return (UINT16)Common::ERROR_CODE::ROOM_INVALID_INDEX;
+				return (INT16)Common::ERROR_CODE::ROOM_INVALID_INDEX;
 			}
 			
-			return pRoom->LeaveUser(pUser);
+			pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
+			pRoom->LeaveUser(pUser);
+			return (INT16)Common::ERROR_CODE::NONE;
 		}
 
 		Room* GetRoomByNumber(INT32 number) 

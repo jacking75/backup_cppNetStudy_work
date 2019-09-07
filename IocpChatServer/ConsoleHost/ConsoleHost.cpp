@@ -145,7 +145,15 @@ ChatServerLib::ChatServerConfig ParseConfig(int argc, char* argv[])
 		return serverConfig;
 	}
 	std::cout << "maxRoomCount: " << *maxRoomCount << std::endl;
-			
+	
+
+	const auto maxRoomUserCount = args.get<INT32>("MaxRoomUserCnt");
+	if (!maxRoomUserCount) {
+		std::cerr << "No maxRoomUserCount. :(" << std::endl;
+		return serverConfig;
+	}
+	std::cout << "maxRoomUserCount: " << *maxRoomUserCount << std::endl;
+
 
 	serverConfig.PortNumber = *port;
 	serverConfig.WorkThreadCount = *WorkThreadCount;
@@ -162,6 +170,7 @@ ChatServerLib::ChatServerConfig ParseConfig(int argc, char* argv[])
 
 	serverConfig.StartRoomNummber = *startRoomNumber;
 	serverConfig.MaxRoomCount = *maxRoomCount;
+	serverConfig.MaxRoomUserCount = *maxRoomUserCount;
 
 	return serverConfig;
 }

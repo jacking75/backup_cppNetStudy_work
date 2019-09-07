@@ -41,7 +41,7 @@ namespace ChatServerLib
 			return m_NetConnIdx;
 		}
 
-		std::string GetUserId() 
+		std::string GetUserId() const
 		{
 			return  m_UserId;
 		}

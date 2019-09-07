@@ -31,7 +31,7 @@ namespace ChatServerLib
 		m_pUserManager->Init();
 
 		m_pRoomManager->SendPacketFunc = sendPacketFunc;
-		m_pRoomManager->Init(m_Config.StartRoomNummber, m_Config.MaxRoomCount);
+		m_pRoomManager->Init(m_Config.StartRoomNummber, m_Config.MaxRoomCount, m_Config.MaxRoomUserCount);
 
 		return 0;
 	}

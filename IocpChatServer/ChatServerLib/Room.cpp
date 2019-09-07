@@ -4,53 +4,32 @@
 
 namespace ChatServerLib
 {
-	void Room::Init(const INT32 roomNum) 
+	void Room::Init(const INT32 roomNum, const INT32 maxUserCount)
 	{
 		m_RoomNum = roomNum;
-		m_UserList = std::vector<User*>();
+		m_MaxUserCount = maxUserCount;
 	}
 
-	UINT16 Room::EnterUser(User* pUser) 
+	INT16 Room::EnterUser(User* pUser) 
 	{
-		if (m_CurrentUserCount >= MAX_USER_COUNT) 
+		if (m_CurrentUserCount >= m_MaxUserCount)
 		{
-			return (UINT16)Common::ERROR_CODE::ENTER_ROOM_FULL_USER;
+			return (INT16)Common::ERROR_CODE::ENTER_ROOM_FULL_USER;
 		}
 				
 		m_UserList.push_back(pUser);
-		m_CurrentUserCount++;
+		++m_CurrentUserCount;
 
 		pUser->EnterRoom(m_RoomNum);
-		return (UINT16)Common::ERROR_CODE::NONE;
+		return (INT16)Common::ERROR_CODE::NONE;
 	}
 
 
-	UINT16 Room::LeaveUser(User* pUser) 
+	void Room::LeaveUser(User* pLeaveUser) 
 	{
-		bool find = false;
-
-		// find 함수 만들어서 여기서 호출하기
-		for (auto itr = begin(m_UserList); itr != end(m_UserList);) 
-		{
-			if ((*itr)->GetUserId() == pUser->GetUserId()) 
-			{
-				itr = m_UserList.erase(itr);
-				m_CurrentUserCount--;
-			}
-			else
-			{
-				itr++;
-			}
-		}
-
-		if (find == false) 
-		{
-			return (UINT16)Common::ERROR_CODE::ROOM_NOT_USED;
-		}
-				
-		pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
-		return (UINT16)Common::ERROR_CODE::NONE;
-
+		m_UserList.remove_if([leaveUserId = pLeaveUser->GetUserId()](User *pUser) {
+									return leaveUserId == pUser->GetUserId();
+								});
 	}
 			
 	void Room::NotifyChat(INT32 connIndex, const char* UserID, const char* Msg) 

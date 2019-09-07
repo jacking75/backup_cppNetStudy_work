@@ -8,8 +8,9 @@ namespace ChatServerLib
 {
 	struct ChatServerConfig : NetLib::NetConfig
 	{
-		int StartRoomNummber;
-		int MaxRoomCount;
+		int StartRoomNummber = 0;
+		int MaxRoomCount = 0;
+		int MaxRoomUserCount = 0;
 
 		NetLib::NetConfig GetNetConfig()
 		{
