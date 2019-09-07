@@ -39,13 +39,13 @@ namespace NetLib
 			m_RingRecvBuffer.Create(config.MaxRecvConnectionBufferCount);
 			m_RingSendBuffer.Create(config.MaxSendConnectionBufferCount);
 
-			m_pConnectionMsg = new Message { OP_CONNECTION, nullptr };
-			m_pCloseMsg = new Message{ OP_CLOSE, nullptr };
+			m_pConnectionMsg = new Message { MessageType::Connection, nullptr };
+			m_pCloseMsg = new Message{ MessageType::Close, nullptr };
 
 			BindAcceptExSocket();
 		}
 	
-		bool CloseComplete(void)
+		bool CloseComplete()
 		{			
 			//소켓만 종료한 채로 전부 처리될 때까지 대기
 			if (IsConnect() && (m_AcceptIORefCount != 0 || m_RecvIORefCount != 0 || m_SendIORefCount != 0) )
@@ -63,7 +63,7 @@ namespace NetLib
 			return false;
 		}
 		
-		void DisconnectConnection(void)
+		void DisconnectConnection()
 		{
 			SetNetStateDisConnection();
 
@@ -77,7 +77,7 @@ namespace NetLib
 			}			
 		}
 		
-		E_NET_RESULT ResetConnection(void)
+		NetResult ResetConnection()
 		{
 			std::lock_guard<std::mutex> Lock(m_MUTEX);
 
@@ -120,14 +120,14 @@ namespace NetLib
 			return true;
 		}
 		
-		E_NET_RESULT PostRecv(const char* pNextBuf, const DWORD remainByte)
+		NetResult PostRecv(const char* pNextBuf, const DWORD remainByte)
 		{
 			if (m_IsConnect == FALSE || m_pRecvOverlappedEx == nullptr)
 			{
-				return E_NET_RESULT::PostRecv_Null_Obj;
+				return NetResult::PostRecv_Null_Obj;
 			}
 
-			m_pRecvOverlappedEx->OverlappedExOperationType = OP_RECV;
+			m_pRecvOverlappedEx->OverlappedExOperationType = OperationType::Recv;
 			m_pRecvOverlappedEx->OverlappedExRemainByte = remainByte;
 
 			auto moveMark = static_cast<int>(remainByte - (m_RingRecvBuffer.GetCurMark() - pNextBuf));
@@ -136,7 +136,7 @@ namespace NetLib
 
 			if (m_pRecvOverlappedEx->OverlappedExWsaBuf.buf == nullptr)
 			{
-				return E_NET_RESULT::PostRecv_Null_WSABUF;
+				return NetResult::PostRecv_Null_WSABUF;
 			}
 
 			m_pRecvOverlappedEx->pOverlappedExSocketMessage = m_pRecvOverlappedEx->OverlappedExWsaBuf.buf - remainByte;
@@ -159,10 +159,10 @@ namespace NetLib
 			if (result == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING)
 			{
 				DecrementRecvIORefCount();
-				return E_NET_RESULT::PostRecv_Null_Socket_Error;
+				return NetResult::PostRecv_Null_Socket_Error;
 			}
 
-			return E_NET_RESULT::Success;
+			return NetResult::Success;
 		}
 		
 		bool PostSend(const int sendSize)
@@ -191,7 +191,7 @@ namespace NetLib
 
 				m_pSendOverlappedEx->OverlappedExRemainByte = 0;
 				m_pSendOverlappedEx->OverlappedExTotalByte = readSize;
-				m_pSendOverlappedEx->OverlappedExOperationType = OP_SEND;
+				m_pSendOverlappedEx->OverlappedExOperationType = OperationType::Send;
 
 				IncrementSendIORefCount();
 
@@ -215,35 +215,35 @@ namespace NetLib
 			return true;
 		}
 		
-		E_NET_RESULT ReservedSendPacketBuffer(OUT char** ppBuf, const int sendSize)
+		NetResult ReservedSendPacketBuffer(OUT char** ppBuf, const int sendSize)
 		{
 			if (!m_IsConnect)
 			{
 				*ppBuf = nullptr;
-				return E_NET_RESULT::ReservedSendPacketBuffer_Not_Connected;
+				return NetResult::ReservedSendPacketBuffer_Not_Connected;
 			}
 
 			*ppBuf = m_RingSendBuffer.ForwardMark(sendSize);
 			if (*ppBuf == nullptr)
 			{
-				return E_NET_RESULT::ReservedSendPacketBuffer_Empty_Buffer;
+				return NetResult::ReservedSendPacketBuffer_Empty_Buffer;
 			}
 
-			return E_NET_RESULT::Success;
+			return NetResult::Success;
 		}
 
 
-		SOCKET GetClientSocket(void) { return m_ClientSocket; }
+		SOCKET GetClientSocket() { return m_ClientSocket; }
 
 		void SetConnectionIP(const char* szIP) { CopyMemory(m_szIP, szIP, MAX_IP_LENGTH); }
-		int GetIndex(void) { return m_Index; }
+		int GetIndex() { return m_Index; }
 
-		int IncrementRecvIORefCount(void) { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
-		int IncrementSendIORefCount(void) { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
-		int IncrementAcceptIORefCount(void) { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_AcceptIORefCount)); }
-		int DecrementRecvIORefCount(void) { return (m_RecvIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)) : 0); }
-		int DecrementSendIORefCount(void) { return (m_SendIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)) : 0); }
-		int DecrementAcceptIORefCount(void) { return (m_AcceptIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_AcceptIORefCount)) : 0); }
+		int IncrementRecvIORefCount() { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
+		int IncrementSendIORefCount() { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
+		int IncrementAcceptIORefCount() { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_AcceptIORefCount)); }
+		int DecrementRecvIORefCount() { return (m_RecvIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)) : 0); }
+		int DecrementSendIORefCount() { return (m_SendIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)) : 0); }
+		int DecrementAcceptIORefCount() { return (m_AcceptIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_AcceptIORefCount)) : 0); }
 
 		bool IsConnect() { return m_IsConnect; }
 
@@ -306,8 +306,9 @@ namespace NetLib
 			InterlockedExchange(reinterpret_cast<LPLONG>(&m_IsSendable), TRUE);
 		}
 
+
 	private:
-		void Init(void)
+		void Init()
 		{
 			ZeroMemory(m_szIP, MAX_IP_LENGTH);
 
@@ -323,20 +324,20 @@ namespace NetLib
 			m_AcceptIORefCount = 0;
 		}
 		
-		E_NET_RESULT BindAcceptExSocket(void)
+		NetResult BindAcceptExSocket()
 		{
 			ZeroMemory(&m_pRecvOverlappedEx->Overlapped, sizeof(OVERLAPPED));
 
 			m_pRecvOverlappedEx->OverlappedExWsaBuf.buf = m_AddrBuf;
 			m_pRecvOverlappedEx->pOverlappedExSocketMessage = m_pRecvOverlappedEx->OverlappedExWsaBuf.buf;
 			m_pRecvOverlappedEx->OverlappedExWsaBuf.len = m_RecvBufSize;
-			m_pRecvOverlappedEx->OverlappedExOperationType = OP_ACCEPT;
+			m_pRecvOverlappedEx->OverlappedExOperationType = OperationType::Accept;
 			m_pRecvOverlappedEx->ConnectionIndex = GetIndex();
 
 			m_ClientSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
 			if (m_ClientSocket == INVALID_SOCKET)
 			{
-				return E_NET_RESULT::BindAcceptExSocket_fail_WSASocket;
+				return NetResult::BindAcceptExSocket_fail_WSASocket;
 			}
 
 			IncrementAcceptIORefCount();
@@ -356,10 +357,10 @@ namespace NetLib
 			{
 				DecrementAcceptIORefCount();
 
-				return E_NET_RESULT::BindAcceptExSocket_fail_AcceptEx;
+				return NetResult::BindAcceptExSocket_fail_AcceptEx;
 			}
 
-			return E_NET_RESULT::Success;
+			return NetResult::Success;
 		}
 
 

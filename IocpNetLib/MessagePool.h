@@ -27,17 +27,17 @@ namespace NetLib
 		}
 
 	public:
-		bool CheckCreate(void)
+		bool CheckCreate()
 		{
 			if (m_MaxMessagePoolCount == INVALID_VALUE)
 			{
-				LogFuncPtr((int)LogLevel::eFETAL, "Fail MessagePool::CheckCreate");
+				LogFuncPtr((int)LogLevel::Fetal, "Fail MessagePool::CheckCreate");
 				return false;
 			}
 
 			if (m_ExtraMessagePoolCount == INVALID_VALUE)
 			{
-				LogFuncPtr((int)LogLevel::eFETAL, "Fail MessagePool::CheckCreate | m_ExtraMessagePoolCount == INVALID_VALUE");
+				LogFuncPtr((int)LogLevel::Fetal, "Fail MessagePool::CheckCreate | m_ExtraMessagePoolCount == INVALID_VALUE");
 				return false;
 			}
 
@@ -57,7 +57,7 @@ namespace NetLib
 			return true;
 		}
 
-		Message* AllocMsg(void)
+		Message* AllocMsg()
 		{
 			Message* pMsg = nullptr;
 			if (!m_MessagePool.try_pop(pMsg))
@@ -71,7 +71,7 @@ namespace NetLib
 
 
 	private:
-		bool CreateMessagePool(void)
+		bool CreateMessagePool()
 		{
 			Message* pMsg = nullptr;
 			for (int i = 0; i < m_MaxMessagePoolCount; ++i)
@@ -93,7 +93,7 @@ namespace NetLib
 			return true;
 		}
 
-		void DestroyMessagePool(void)
+		void DestroyMessagePool()
 		{
 			while (auto pData = AllocMsg() )
 			{
@@ -102,7 +102,7 @@ namespace NetLib
 					break;
 				}
 
-				SAFE_DELETE(pData);
+				delete pData;
 			}
 		}
 

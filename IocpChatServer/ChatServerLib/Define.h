@@ -15,18 +15,18 @@ namespace ChatServerLib
 		{
 			NetLib::NetConfig netConfig;
 
-			netConfig.m_PortNumber = m_PortNumber; 
-			netConfig.m_WorkThreadCount = m_WorkThreadCount;
-			netConfig.m_MaxRecvOverlappedBufferSize = m_MaxRecvOverlappedBufferSize;
-			netConfig.m_MaxSendOverlappedBufferSize = m_MaxSendOverlappedBufferSize;
-			netConfig.m_MaxRecvConnectionBufferCount = m_MaxRecvConnectionBufferCount;
-			netConfig.m_MaxSendConnectionBufferCount = m_MaxSendConnectionBufferCount;
-			netConfig.m_MaxPacketSize = m_MaxPacketSize;
-			netConfig.m_MaxConnectionCount = m_MaxConnectionCount;
-			netConfig.m_MaxMessagePoolCount = m_MaxMessagePoolCount;
-			netConfig.m_ExtraMessagePoolCount = m_ExtraMessagePoolCount;
-			netConfig.m_PerformancePacketMillisecondsTime = m_PerformancePacketMillisecondsTime;
-			netConfig.m_PostMessagesThreadsCount = m_PostMessagesThreadsCount;
+			netConfig.PortNumber = PortNumber; 
+			netConfig.WorkThreadCount = WorkThreadCount;
+			netConfig.MaxRecvOverlappedBufferSize = MaxRecvOverlappedBufferSize;
+			netConfig.MaxSendOverlappedBufferSize = MaxSendOverlappedBufferSize;
+			netConfig.MaxRecvConnectionBufferCount = MaxRecvConnectionBufferCount;
+			netConfig.MaxSendConnectionBufferCount = MaxSendConnectionBufferCount;
+			netConfig.MaxPacketSize = MaxPacketSize;
+			netConfig.MaxConnectionCount = MaxConnectionCount;
+			netConfig.MaxMessagePoolCount = MaxMessagePoolCount;
+			netConfig.ExtraMessagePoolCount = ExtraMessagePoolCount;
+			netConfig.PerformancePacketMillisecondsTime = PerformancePacketMillisecondsTime;
+			netConfig.PostMessagesThreadsCount = PostMessagesThreadsCount;
 			
 			return netConfig;
 		}

@@ -5,12 +5,13 @@
 
 namespace ChatServerLib
 {
-	//TODO 최흥배 크기가 작으므로 .cpp의 함수 구현을 .h 파일로 이동한다
-	void UserManager::Init() {
+	void UserManager::Init() 
+	{
 
 		UserObjPool = std::vector<User*>(MAX_USER_CNT);
 
-		for (int i = 0; i < MAX_USER_CNT; i++) {
+		for (int i = 0; i < MAX_USER_CNT; i++) 
+		{
 			UserObjPool[i] = new User();
 			UserObjPool[i]->Init(i);
 		}
@@ -30,24 +31,23 @@ namespace ChatServerLib
 		return 0;
 	}
 
-	//TODO 최흥배 코드 일관성 필요 
-	//    {
-	//} 는 아래처럼 바꾼다
-	// {
-	// }
-	int UserManager::FindUserByID(char* userID) {
+	int UserManager::FindUserByID(char* userID) 
+	{
 
 		std::unordered_map<std::string, int>::iterator res;
 		res = UserDictionary.find(userID);
-		if (res == UserDictionary.end()) {
+		if (res == UserDictionary.end()) 
+		{
 			return -1;
 		}
-		else {
+		else 
+		{
 			return (*res).second;
 		}
 	}
 
-	void UserManager::DeleteUserInfo(User* deleteUser) {
+	void UserManager::DeleteUserInfo(User* deleteUser) 
+	{
 		UserDictionary.erase(deleteUser->GetUserId());
 		deleteUser->Clear();
 

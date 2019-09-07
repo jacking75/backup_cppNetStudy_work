@@ -11,22 +11,29 @@ namespace ChatServerLib
 	{
 
 	public:
-		UserManager() {};
-		~UserManager() {};
+		UserManager() = default;
+		~UserManager() = default;
 
 		void Init();
 
 		int GetCurrentUserCnt() { return current_user_cnt; } //TODO 최흥배 코드가 보기 좋도록 함수 간에 간격을 준다. 다른 파일도 같이 적용하기
+
 		int GetMaxUserCnt() { return MAX_USER_CNT; }
+		
 		void IncreaseUserCnt() { current_user_cnt++; }
-		void DecreaseUserCnt() {
-			if (current_user_cnt > 0) {
+		
+		void DecreaseUserCnt() 
+		{
+			if (current_user_cnt > 0) 
+			{
 				current_user_cnt--;
 			}
 		}
 
 		int AddUser(char* userID, int conn_idx);
+		
 		int FindUserByID(char* userID);
+		
 		void DeleteUserInfo(User* deleteUser);
 
 		User* GetUserByConnIdx(INT32 conn_idx);
@@ -38,7 +45,5 @@ namespace ChatServerLib
 
 		std::vector<User*> UserObjPool; //vector로
 		std::unordered_map<std::string, int> UserDictionary;
-
-
 	};
 }

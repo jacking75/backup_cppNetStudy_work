@@ -9,10 +9,11 @@ namespace NetLib
 	class RingBuffer
 	{
 	public:
-		RingBuffer() {}
+		RingBuffer() = default;
+
 		~RingBuffer() 
 		{ 
-			SAFE_DELETE_ARR(m_pRingBuffer); 
+			delete[] m_pRingBuffer;
 		}
 
 	
@@ -22,10 +23,10 @@ namespace NetLib
 			{
 				return false;
 			}
+
 			m_RingBufferSize = ringBufferSize;
 
-			SAFE_DELETE_ARR(m_pRingBuffer);
-
+			delete[] m_pRingBuffer;
 			m_pRingBuffer = new char[m_RingBufferSize];
 
 			m_pBeginMark = m_pRingBuffer;
@@ -35,7 +36,7 @@ namespace NetLib
 			return true;
 		}
 
-		void Init(void)
+		void Init()
 		{
 			SpinLockGuard Lock(&m_CS);
 
@@ -151,9 +152,9 @@ namespace NetLib
 			m_UsedBufferSize += usedBufferSize;
 		}
 
-		int GetBufferSize(void) { return m_RingBufferSize; }
-		char* GetBeginMark(void) { return m_pBeginMark; }
-		char* GetCurMark(void) { return m_pCurMark; }
+		int GetBufferSize() { return m_RingBufferSize; }
+		char* GetBeginMark() { return m_pBeginMark; }
+		char* GetCurMark() { return m_pCurMark; }
 
 
 	private:

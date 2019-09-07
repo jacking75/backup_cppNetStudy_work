@@ -3,26 +3,25 @@
 #define WIN32_LEAN_AND_MEAN 
 #include <Windows.h>
 
-#define SAFE_DELETE(x) if( x != nullptr ) { delete x; x = nullptr; } 
-#define SAFE_DELETE_ARR(x) if( x != nullptr ) { delete [] x; x = nullptr;}
+//#define SAFE_DELETE(x) if( x != nullptr ) { delete x; x = nullptr; } 
+//#define SAFE_DELETE_ARR(x) if( x != nullptr ) { delete [] x; x = nullptr;}
 
 namespace NetLib
 {
-	const int INVALID_VALUE = -1;
+	const INT32 INVALID_VALUE = -1;
 	
 	enum class LogLevel
 	{
-		eTRACE = 0,
-		eDEBUG,
-		eINFO,
-		eWARNING,
-		eERROR,
-		eFETAL
+		Trace = 0,
+		Debug,
+		Info,
+		Warn,
+		Error,
+		Fetal
 	};
 
 
-	//TODO Modern C++로 코드 변경하기
-	enum class E_NET_RESULT : INT16
+	enum class NetResult : INT16
 	{
 		Success = 0,
 

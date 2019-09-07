@@ -4,12 +4,10 @@
 
 namespace ChatServerLib
 {
-	void Room::Init(UINT16 roomNum) 
+	void Room::Init(const INT32 roomNum) 
 	{
 		m_RoomNum = roomNum;
 		m_UserList = std::vector<User*>();
-		m_AuthUserList[0] = "";
-		m_AuthUserList[1] = "";
 	}
 
 	UINT16 Room::EnterUser(User* pUser) 
@@ -18,12 +16,7 @@ namespace ChatServerLib
 		{
 			return (UINT16)Common::ERROR_CODE::ENTER_ROOM_FULL_USER;
 		}
-
-		if (pUser->GetUserId().compare(m_AuthUserList[0]) != 0 && pUser->GetUserId().compare(m_AuthUserList[1]) != 0) 
-		{
-			return (UINT16)Common::ERROR_CODE::ENTER_ROOM_NOT_FINDE_USER;
-		}
-
+				
 		m_UserList.push_back(pUser);
 		m_CurrentUserCount++;
 
@@ -36,9 +29,11 @@ namespace ChatServerLib
 	{
 		bool find = false;
 
+		// find 함수 만들어서 여기서 호출하기
 		for (auto itr = begin(m_UserList); itr != end(m_UserList);) 
 		{
-			if ((*itr)->GetUserId() == pUser->GetUserId()) {
+			if ((*itr)->GetUserId() == pUser->GetUserId()) 
+			{
 				itr = m_UserList.erase(itr);
 				m_CurrentUserCount--;
 			}
@@ -52,30 +47,12 @@ namespace ChatServerLib
 		{
 			return (UINT16)Common::ERROR_CODE::ROOM_NOT_USED;
 		}
-
-		if (pUser->GetUserId().compare(m_AuthUserList[0]) == 0) 
-		{
-			m_AuthUserList[0] = '\0';
-		}
-
-		if (pUser->GetUserId().compare(m_AuthUserList[1]) == 0) 
-		{
-			m_AuthUserList[1] = '\0';
-		}
-
+				
 		pUser->SetDomainState(User::DOMAIN_STATE::LOGIN);
 		return (UINT16)Common::ERROR_CODE::NONE;
 
 	}
-
-
-	void Room::SetAuthUserList(char* UserID1, char* UserID2)
-	{
-		m_AuthUserList[0] = UserID1;
-		m_AuthUserList[1] = UserID2;
-	}
-
-
+			
 	void Room::NotifyChat(INT32 connIndex, const char* UserID, const char* Msg) 
 	{
 		Common::ROOM_CHAT_NOTIFY_PACKET roomChatNtfyPkt;
@@ -84,11 +61,11 @@ namespace ChatServerLib
 
 		CopyMemory(roomChatNtfyPkt.Msg, Msg, sizeof(roomChatNtfyPkt.Msg));
 		CopyMemory(roomChatNtfyPkt.UserID, UserID, sizeof(roomChatNtfyPkt.UserID));
-		SendToAllUser((UINT16)Common::PACKET_ID::ROOM_CHAT_NOTIFY, sizeof(roomChatNtfyPkt), &roomChatNtfyPkt, connIndex, false);
+		SendToAllUser(sizeof(roomChatNtfyPkt), &roomChatNtfyPkt, connIndex, false);
 	}
 
 
-	void Room::SendToAllUser(const UINT16 packetID, const UINT16 dataSize, void* pData, const UINT32 passUserindex, bool exceptMe) 
+	void Room::SendToAllUser(const UINT16 dataSize, void* pData, const INT32 passUserindex, bool exceptMe) 
 	{
 
 		for (auto pUser : m_UserList)
@@ -97,7 +74,7 @@ namespace ChatServerLib
 				continue;
 			}
 
-			if (exceptMe == true && pUser->GetNetConnIdx() == passUserindex) {
+			if (exceptMe && pUser->GetNetConnIdx() == passUserindex) {
 				continue;
 			}
 						

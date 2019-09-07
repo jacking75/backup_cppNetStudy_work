@@ -33,56 +33,56 @@ namespace NetLib
 		~IOCPServerNet() {}
 
 	public:
-		virtual E_NET_RESULT StartServer(NetConfig netConfig)
+		virtual NetResult Start(NetConfig netConfig)
 		{
-			LogFuncPtr((int)LogLevel::eINFO, "Start Server Completion");
+			LogFuncPtr((int)LogLevel::Info, "Start Server Completion");
 						
 			m_NetConfig = netConfig;
 			
 			auto result = CreateListenSocket();
-			if (result != E_NET_RESULT::Success)
+			if (result != NetResult::Success)
 			{
 				return result;
 			}
 
 			result = CreateHandleIOCP();
-			if (result != E_NET_RESULT::Success)
+			if (result != NetResult::Success)
 			{
 				return result;
 			}
 
 			if (!CreateMessageManager())
 			{
-				return E_NET_RESULT::Fail_Create_Message_Manager;
+				return NetResult::Fail_Create_Message_Manager;
 			}
 
 			if (!LinkListenSocketIOCP())
 			{
-				return E_NET_RESULT::Fail_Link_IOCP;
+				return NetResult::Fail_Link_IOCP;
 			}
 
 			if (!CreateConnections())
 			{
-				return E_NET_RESULT::Fail_Create_Connection;
+				return NetResult::Fail_Create_Connection;
 			}
 
 			if (!CreatePerformance())
 			{
-				return E_NET_RESULT::Fail_Create_Performance;
+				return NetResult::Fail_Create_Performance;
 			}
 
 			if (!CreateWorkThread())
 			{
-				return E_NET_RESULT::Fail_Create_WorkThread;
+				return NetResult::Fail_Create_WorkThread;
 			}
 
-			LogFuncPtr((int)LogLevel::eINFO, "Start Server Completion");
-			return E_NET_RESULT::Success;
+			LogFuncPtr((int)LogLevel::Info, "Start Server Completion");
+			return NetResult::Success;
 		}
 
-		virtual void EndServer(void)
+		virtual void End()
 		{
-			LogFuncPtr((int)LogLevel::eINFO, "IOCPServer::EndServer - Start");
+			LogFuncPtr((int)LogLevel::Info, "IOCPServer::EndServer - Start");
 
 			if (m_hWorkIOCP != INVALID_HANDLE_VALUE)
 			{
@@ -121,7 +121,7 @@ namespace NetLib
 				delete m_pMsgPool;
 			}
 
-			LogFuncPtr((int)LogLevel::eINFO, "IOCPServer::EndServer - Completion");
+			LogFuncPtr((int)LogLevel::Info, "IOCPServer::EndServer - Completion");
 		}
 
 		
@@ -149,16 +149,16 @@ namespace NetLib
 			}
 
 			
-			switch (pMsg->OperationType)
+			switch (pMsg->Type)
 			{
-			case OP_CONNECTION:
+			case MessageType::Connection:
 				DoPostConnection(pConnection, pMsg, msgOperationType, connectionIndex);
 				break;
-			case OP_CLOSE:
+			case MessageType::Close:
 				//TODO 재 사용에 딜레이를 주도록 한다. 이유는 재 사용으로 가능 도중 IOCP 워크 스레드에서 이 세션이 호출될 수도 있다. 
 				DoPostClose(pConnection, pMsg, msgOperationType, connectionIndex);
 				break;
-			case OP_RECV_PACKET:
+			case MessageType::OnRecv:
 				DoPostRecvPacket(pConnection, pMsg, msgOperationType, connectionIndex, pBuf, copySize, ioSize);
 				m_pMsgPool->DeallocMsg(pMsg);
 				break;
@@ -177,11 +177,11 @@ namespace NetLib
 			
 			char* pReservedSendBuf = nullptr;
 			auto result = pConnection->ReservedSendPacketBuffer(&pReservedSendBuf, packetSize);
-			if (result == E_NET_RESULT::ReservedSendPacketBuffer_Not_Connected)
+			if (result == NetResult::ReservedSendPacketBuffer_Not_Connected)
 			{
 				return;
 			}
-			else if (result == E_NET_RESULT::ReservedSendPacketBuffer_Empty_Buffer)
+			else if (result == NetResult::ReservedSendPacketBuffer_Empty_Buffer)
 			{
 				if (pConnection->CloseComplete())
 				{
@@ -201,67 +201,67 @@ namespace NetLib
 			}
 		}
 
-		int GetMaxPacketSize(void) { return m_NetConfig.m_MaxPacketSize; }
-		int GetMaxConnectionCount(void) { return m_NetConfig.m_MaxConnectionCount; }
-		int GetPostMessagesThreadsCount(void) { return m_NetConfig.m_PostMessagesThreadsCount; }
+		int GetMaxPacketSize() { return m_NetConfig.MaxPacketSize; }
+		int GetMaxConnectionCount() { return m_NetConfig.MaxConnectionCount; }
+		int GetPostMessagesThreadsCount() { return m_NetConfig.PostMessagesThreadsCount; }
 
 
 	private:		
-		E_NET_RESULT CreateListenSocket(void)
+		NetResult CreateListenSocket()
 		{
 			WSADATA wsaData;
 			auto result = WSAStartup(MAKEWORD(2, 2), &wsaData);
 			if (result != 0)
 			{
-				return E_NET_RESULT::fail_create_listensocket_startup;
+				return NetResult::fail_create_listensocket_startup;
 			}
 
 			m_ListenSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_IP, NULL, 0, WSA_FLAG_OVERLAPPED);
 			if (m_ListenSocket == INVALID_SOCKET)
 			{
-				return E_NET_RESULT::fail_create_listensocket_socket;
+				return NetResult::fail_create_listensocket_socket;
 			}
 
 			SOCKADDR_IN	addr;
 			ZeroMemory(&addr, sizeof(SOCKADDR_IN));
 
 			addr.sin_family = AF_INET;
-			addr.sin_port = htons(m_NetConfig.m_PortNumber);
+			addr.sin_port = htons(m_NetConfig.PortNumber);
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 			if (::bind(m_ListenSocket, reinterpret_cast<SOCKADDR*>(&addr), sizeof(addr)) == SOCKET_ERROR)
 			{
-				return E_NET_RESULT::fail_create_listensocket_bind;
+				return NetResult::fail_create_listensocket_bind;
 			}
 
 			if (::listen(m_ListenSocket, SOMAXCONN) == SOCKET_ERROR)
 			{
-				return E_NET_RESULT::fail_create_listensocket_listen;
+				return NetResult::fail_create_listensocket_listen;
 			}
 
-			return E_NET_RESULT::Success;
+			return NetResult::Success;
 		}
 
-		E_NET_RESULT CreateHandleIOCP(void)
+		NetResult CreateHandleIOCP()
 		{
 			m_hWorkIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
 			if (m_hWorkIOCP == INVALID_HANDLE_VALUE)
 			{
-				return E_NET_RESULT::fail_handleiocp_work;
+				return NetResult::fail_handleiocp_work;
 			}
 
 			m_hLogicIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 1);
 			if (m_hLogicIOCP == INVALID_HANDLE_VALUE)
 			{
-				return E_NET_RESULT::fail_handleiocp_logic;
+				return NetResult::fail_handleiocp_logic;
 			}
 
-			return E_NET_RESULT::Success;
+			return NetResult::Success;
 		}
 
-		bool CreateMessageManager(void)
+		bool CreateMessageManager()
 		{
-			m_pMsgPool = new MessagePool(m_NetConfig.m_MaxMessagePoolCount, m_NetConfig.m_ExtraMessagePoolCount);
+			m_pMsgPool = new MessagePool(m_NetConfig.MaxMessagePoolCount, m_NetConfig.ExtraMessagePoolCount);
 			if (!m_pMsgPool->CheckCreate())
 			{
 				return false;
@@ -270,7 +270,7 @@ namespace NetLib
 			return true;
 		}
 
-		bool LinkListenSocketIOCP(void)
+		bool LinkListenSocketIOCP()
 		{
 			auto hIOCPHandle = CreateIoCompletionPort(
 				reinterpret_cast<HANDLE>(m_ListenSocket),
@@ -287,15 +287,15 @@ namespace NetLib
 		}
 
 
-		bool CreateConnections(void)
+		bool CreateConnections()
 		{
 			ConnectionNetConfig config;
-			config.MaxSendConnectionBufferCount = m_NetConfig.m_MaxSendConnectionBufferCount;
-			config.MaxRecvConnectionBufferCount = m_NetConfig.m_MaxRecvConnectionBufferCount;
-			config.MaxRecvOverlappedBufferSize = m_NetConfig.m_MaxRecvOverlappedBufferSize;
-			config.MaxSendOverlappedBufferSize = m_NetConfig.m_MaxSendOverlappedBufferSize;
+			config.MaxSendConnectionBufferCount = m_NetConfig.MaxSendConnectionBufferCount;
+			config.MaxRecvConnectionBufferCount = m_NetConfig.MaxRecvConnectionBufferCount;
+			config.MaxRecvOverlappedBufferSize = m_NetConfig.MaxRecvOverlappedBufferSize;
+			config.MaxSendOverlappedBufferSize = m_NetConfig.MaxSendOverlappedBufferSize;
 
-			for (int i = 0; i < m_NetConfig.m_MaxConnectionCount; ++i)
+			for (int i = 0; i < m_NetConfig.MaxConnectionCount; ++i)
 			{
 				auto pConnection = new Connection();
 				pConnection->Init(m_ListenSocket, i, config);
@@ -305,9 +305,9 @@ namespace NetLib
 			return true;
 		}
 
-		void DestoryConnections(void)
+		void DestoryConnections()
 		{
-			for (int i = 0; i < m_NetConfig.m_MaxConnectionCount; ++i)
+			for (int i = 0; i < m_NetConfig.MaxConnectionCount; ++i)
 			{
 				delete m_Connections[i];				
 			}
@@ -315,7 +315,7 @@ namespace NetLib
 
 		Connection* GetConnection(const INT32 connectionIndex)
 		{
-			if (connectionIndex < 0 || connectionIndex >= m_NetConfig.m_MaxConnectionCount)
+			if (connectionIndex < 0 || connectionIndex >= m_NetConfig.MaxConnectionCount)
 			{
 				return nullptr;
 			}
@@ -324,27 +324,27 @@ namespace NetLib
 		}
 
 
-		bool CreatePerformance(void)
+		bool CreatePerformance()
 		{
-			if (m_NetConfig.m_PerformancePacketMillisecondsTime == INVALID_VALUE)
+			if (m_NetConfig.PerformancePacketMillisecondsTime == INVALID_VALUE)
 			{
 				return false;
 			}
 
 			m_Performance = std::make_unique<Performance>();
-			m_Performance->Start(m_NetConfig.m_PerformancePacketMillisecondsTime);
+			m_Performance->Start(m_NetConfig.PerformancePacketMillisecondsTime);
 
 			return true;
 		}
 
-		bool CreateWorkThread(void)
+		bool CreateWorkThread()
 		{
-			if (m_NetConfig.m_WorkThreadCount == INVALID_VALUE)
+			if (m_NetConfig.WorkThreadCount == INVALID_VALUE)
 			{
 				return false;
 			}
 
-			for (int i = 0; i < m_NetConfig.m_WorkThreadCount; ++i)
+			for (int i = 0; i < m_NetConfig.WorkThreadCount; ++i)
 			{
 				m_WorkThreads.push_back(std::make_unique<std::thread>([&]() {WorkThread(); }));
 			}
@@ -352,7 +352,7 @@ namespace NetLib
 			return true;
 		}
 
-		void WorkThread(void)
+		void WorkThread()
 		{
 			while (m_IsRunWorkThread)
 			{
@@ -374,12 +374,12 @@ namespace NetLib
 					{
 						char logmsg[128] = { 0, };
 						sprintf_s(logmsg, "IOCPServer::WorkThread - GetQueuedCompletionStatus(). error:%d", WSAGetLastError());
-						LogFuncPtr((int)LogLevel::eERROR, logmsg);
+						LogFuncPtr((int)LogLevel::Error, logmsg);
 					}
 					continue;
 				}
 
-				if (!result || (0 == ioSize && OP_ACCEPT != pOverlappedEx->OverlappedExOperationType))
+				if (!result || (0 == ioSize && OperationType::Accept != pOverlappedEx->OverlappedExOperationType))
 				{
 					HandleExceptionWorkThread(pConnection, pOverlappedEx);
 					continue;
@@ -387,24 +387,24 @@ namespace NetLib
 
 				switch (pOverlappedEx->OverlappedExOperationType)
 				{
-				case OP_ACCEPT:
+				case OperationType::Accept:
 					DoAccept(pOverlappedEx);
 					break;
-				case OP_RECV:
+				case OperationType::Recv:
 					DoRecv(pOverlappedEx, ioSize);
 					break;
-				case OP_SEND:
+				case OperationType::Send:
 					DoSend(pOverlappedEx, ioSize);
 					break;
 				}
 			}
 		}
 
-		E_NET_RESULT PostNetMessage(Connection* pConnection, Message* pMsg, const DWORD packetSize = 0)
+		NetResult PostNetMessage(Connection* pConnection, Message* pMsg, const DWORD packetSize = 0)
 		{
 			if (m_hLogicIOCP == INVALID_HANDLE_VALUE || pMsg == nullptr)
 			{
-				return E_NET_RESULT::fail_message_null;
+				return NetResult::fail_message_null;
 			}
 
 			auto result = PostQueuedCompletionStatus(
@@ -416,11 +416,11 @@ namespace NetLib
 			if (!result)
 			{
 				char logmsg[256] = { 0, };
-				sprintf_s(logmsg, "IOCPServer::PostLogicMsg - PostQueuedCompletionStatus(). error:%d, MsgType:%d", WSAGetLastError(), pMsg->OperationType);
-				LogFuncPtr((int)LogLevel::eERROR, logmsg);
-				return E_NET_RESULT::fail_pqcs;
+				sprintf_s(logmsg, "IOCPServer::PostLogicMsg - PostQueuedCompletionStatus(). error:%d, MsgType:%d", WSAGetLastError(), pMsg->Type);
+				LogFuncPtr((int)LogLevel::Error, logmsg);
+				return NetResult::fail_pqcs;
 			}
-			return E_NET_RESULT::Success;
+			return NetResult::Success;
 		}
 
 		void HandleExceptionWorkThread(Connection* pConnection, const OVERLAPPED_EX* pOverlappedEx)
@@ -433,13 +433,13 @@ namespace NetLib
 			//Connection 접속 종료 시 남은 IO 처리
 			switch (pOverlappedEx->OverlappedExOperationType)
 			{
-			case OP_ACCEPT:
+			case OperationType::Accept:
 				pConnection->DecrementAcceptIORefCount();
 				break;
-			case OP_RECV:
+			case OperationType::Recv:
 				pConnection->DecrementRecvIORefCount();
 				break;
-			case OP_SEND:
+			case OperationType::Send:
 				pConnection->DecrementSendIORefCount();
 				break;
 			}
@@ -463,7 +463,7 @@ namespace NetLib
 
 			pConnection->SetNetStateDisConnection();
 						
-			if (PostNetMessage(pConnection, pConnection->GetCloseMsg()) != E_NET_RESULT::Success)
+			if (PostNetMessage(pConnection, pConnection->GetCloseMsg()) != NetResult::Success)
 			{
 				pConnection->ResetConnection();
 			}
@@ -483,7 +483,7 @@ namespace NetLib
 			{
 				char logmsg[128] = { 0, };
 				sprintf_s(logmsg, "IOCPServer::DoAccept - GetAcceptExSockaddrs(). error:%d", WSAGetLastError());
-				LogFuncPtr((int)LogLevel::eERROR, logmsg);
+				LogFuncPtr((int)LogLevel::Error, logmsg);
 
 				if (pConnection->CloseComplete())
 				{
@@ -504,17 +504,17 @@ namespace NetLib
 			pConnection->SetNetStateConnection();
 			
 			auto result = pConnection->PostRecv(pConnection->RecvBufferBeginPos(), 0);
-			if (result != E_NET_RESULT::Success)
+			if (result != NetResult::Success)
 			{
 				char logmsg[128] = { 0, };
 				sprintf_s(logmsg, "IOCPServer::PostRecv. Call pConnection->PostRecv. error:%d", WSAGetLastError());
-				LogFuncPtr((int)LogLevel::eERROR, logmsg);
+				LogFuncPtr((int)LogLevel::Error, logmsg);
 				
 				HandleExceptionCloseConnection(pConnection);
 				return;
 			}
 
-			if (PostNetMessage(pConnection, pConnection->GetConnectionMsg()) != E_NET_RESULT::Success)
+			if (PostNetMessage(pConnection, pConnection->GetConnectionMsg()) != NetResult::Success)
 			{
 				pConnection->DisconnectConnection();
 				pConnection->ResetConnection();
@@ -554,7 +554,7 @@ namespace NetLib
 			{
 				char logmsg[128] = { 0, };
 				sprintf_s(logmsg, "IOCPServer::DoRecv. Arrived Wrong Packet.");
-				LogFuncPtr((int)LogLevel::eERROR, logmsg);
+				LogFuncPtr((int)LogLevel::Error, logmsg);
 
 				if (pConnection->CloseComplete())
 				{
@@ -585,8 +585,8 @@ namespace NetLib
 					return;
 				}
 
-				pMsg->SetMessage(OP_RECV_PACKET, pCurrent);
-				if (PostNetMessage(pConnection, pMsg, currentSize) != E_NET_RESULT::Success)
+				pMsg->SetMessage(MessageType::OnRecv, pCurrent);
+				if (PostNetMessage(pConnection, pMsg, currentSize) != NetResult::Success)
 				{
 					m_pMsgPool->DeallocMsg(pMsg);
 					return;
@@ -606,7 +606,7 @@ namespace NetLib
 						if (0 >= packetSize || packetSize > pConnection->RecvBufferSize())
 						{
 							char logmsg[128] = { 0, }; sprintf_s(logmsg, "IOCPServer::DoRecv. Arrived Wrong Packet.");
-							LogFuncPtr((int)LogLevel::eERROR, logmsg);
+							LogFuncPtr((int)LogLevel::Error, logmsg);
 
 							if (pConnection->CloseComplete())
 							{
@@ -623,8 +623,8 @@ namespace NetLib
 								return;
 							}
 
-							pMsg->SetMessage(OP_RECV_PACKET, pNext);
-							if (PostNetMessage(pConnection, pMsg, currentSize) != E_NET_RESULT::Success)
+							pMsg->SetMessage(MessageType::OnRecv, pNext);
+							if (PostNetMessage(pConnection, pMsg, currentSize) != NetResult::Success)
 							{
 								m_pMsgPool->DeallocMsg(pMsg);
 								return;
@@ -645,7 +645,7 @@ namespace NetLib
 				}
 			}
 
-			if (pConnection->PostRecv(pNext, remainByte) != E_NET_RESULT::Success)
+			if (pConnection->PostRecv(pNext, remainByte) != NetResult::Success)
 			{
 				if (pConnection->CloseComplete())
 				{
@@ -694,7 +694,7 @@ namespace NetLib
 
 					char logmsg[128] = { 0, };
 					sprintf_s(logmsg, "IOCPServer::DoSend. WSASend. error:%d", WSAGetLastError());
-					LogFuncPtr((int)LogLevel::eERROR, logmsg);
+					LogFuncPtr((int)LogLevel::Error, logmsg);
 
 					if (pConnection->CloseComplete())
 					{
@@ -726,22 +726,22 @@ namespace NetLib
 				return;
 			}
 
-			msgOperationType = pMsg->OperationType;
+			msgOperationType = (INT8)pMsg->Type;
 			connectionIndex = pConnection->GetIndex();
 
 			char logmsg[128] = { 0, };
 			sprintf_s(logmsg, "IOCPServer::DoPostConnection. Connect Connection. Index:%d", pConnection->GetIndex());
-			LogFuncPtr((int)LogLevel::eDEBUG, logmsg);
+			LogFuncPtr((int)LogLevel::Debug, logmsg);
 		}
 
 		void DoPostClose(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex)
 		{
-			msgOperationType = pMsg->OperationType;
+			msgOperationType = (INT8)pMsg->Type;
 			connectionIndex = pConnection->GetIndex();
 
 			char logmsg[128] = { 0, };
 			sprintf_s(logmsg, "IOCPServer::DoPostClose. Disconnect Connection. Index:%d", pConnection->GetIndex());
-			LogFuncPtr((int)LogLevel::eDEBUG, logmsg);
+			LogFuncPtr((int)LogLevel::Debug, logmsg);
 
 			pConnection->ResetConnection();
 		}
@@ -753,7 +753,7 @@ namespace NetLib
 				return;
 			}
 
-			msgOperationType = pMsg->OperationType;
+			msgOperationType = (INT8)pMsg->Type;
 			connectionIndex = pConnection->GetIndex();
 			CopyMemory(pBuf, pMsg->pContents, ioSize);
 

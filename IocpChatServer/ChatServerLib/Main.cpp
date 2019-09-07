@@ -1,25 +1,17 @@
-
 #include "Main.h"
 
 
 namespace ChatServerLib 
 {
-	Main::Main() 
-	{
-	}
-
-	Main::~Main()
-	{
-	}
-
 	int Main::Init(ChatServerConfig serverConfig) //Config를 외부에서 받도록 이 함수의 인
 	{
 		m_pIOCPServer = std::make_unique<NetLib::IOCPServerNet>();
 		
+		m_Config = serverConfig;
 		auto netConfig = serverConfig.GetNetConfig();
 
-		NetLib::E_NET_RESULT ServerStartResult = m_pIOCPServer->StartServer(netConfig);
-		if (ServerStartResult != NetLib::E_NET_RESULT::Success) {
+		auto ServerStartResult = m_pIOCPServer->Start(netConfig);
+		if (ServerStartResult != NetLib::NetResult::Success) {
 			printf("ServerStartError! ErrorCode: %d\n", (int)ServerStartResult);
 			return -1;
 		}		
@@ -28,19 +20,18 @@ namespace ChatServerLib
 		m_pUserManager = std::make_unique<UserManager> ();
 		m_pRoomManager = std::make_unique<RoomManager> ();
 
-		m_pPacketManager->Init(m_pIOCPServer.get(), m_pUserManager.get(), m_pRoomManager.get());
-		
-		m_pUserManager->Init();
-
-		m_pRoomManager->SendPacketFunc = [&](INT32 connectionIndex, void* pSendPacket, INT16 packetSize)
+		auto sendPacketFunc = [&](INT32 connectionIndex, void* pSendPacket, INT16 packetSize)
 		{
 			m_pIOCPServer->SendPacket(connectionIndex, pSendPacket, packetSize);
 		};
-		m_pRoomManager->Init();
 
-		max_packet_size = m_pIOCPServer->GetMaxPacketSize();
-		max_connection_count = m_pIOCPServer->GetMaxConnectionCount();
-		post_message_thread_cnt = m_pIOCPServer->GetPostMessagesThreadsCount();
+		m_pPacketManager->SendPacketFunc = sendPacketFunc;
+		m_pPacketManager->Init(m_pUserManager.get(), m_pRoomManager.get());
+		
+		m_pUserManager->Init();
+
+		m_pRoomManager->SendPacketFunc = sendPacketFunc;
+		m_pRoomManager->Init();
 
 				
 		//서버정보를 초기화하고 UserManager
@@ -52,8 +43,8 @@ namespace ChatServerLib
 	{
 		m_IsRun = true;
 
-		int MaxPacketSize = Common::MAX_PACKET_SIZE + 1;
-		char* pBuf = new char[MaxPacketSize];
+		auto MaxPacketSize = m_Config.MaxPacketSize + 1;
+		auto pBuf = new char[MaxPacketSize];
 		ZeroMemory(pBuf, sizeof(char) * MaxPacketSize);
 		INT32 waitTimeMillisec = 1;
 
@@ -67,21 +58,24 @@ namespace ChatServerLib
 
 			//WorkThread의 함수들을 불러와서 처리한다.
 
-			if (m_pIOCPServer->ProcessNetworkMessage(operationType, connectionIndex, pBuf, copySize, waitTimeMillisec))
+			if (m_pIOCPServer->ProcessNetworkMessage(operationType, connectionIndex, pBuf, copySize, waitTimeMillisec) == false)
 			{
-				switch (operationType)
-				{
-				case NetLib::OP_CONNECTION:
-					printf("On Connect %d\n",connectionIndex);
-					//	m_pPacketManager->ConnectClient(connectionIndex);
-					break;
-				case NetLib::OP_CLOSE:
-					m_pPacketManager->ClearConnectionInfo(connectionIndex);
-					break;
-				case NetLib::OP_RECV_PACKET:
-					m_pPacketManager->ProcessRecvPacket(connectionIndex, pBuf, copySize);
-					break;
-				}
+				continue;
+			}
+			
+			auto msgType = (NetLib::MessageType)operationType;
+
+			switch (msgType)
+			{
+			case NetLib::MessageType::Connection:
+				printf("On Connect %d\n",connectionIndex);
+				break;
+			case NetLib::MessageType::Close:
+				m_pPacketManager->ClearConnectionInfo(connectionIndex);
+				break;
+			case NetLib::MessageType::OnRecv:
+				m_pPacketManager->ProcessRecvPacket(connectionIndex, pBuf, copySize);
+				break;
 			}
 		}
 
@@ -91,7 +85,7 @@ namespace ChatServerLib
 	{
 		m_IsRun = false;
 
-		m_pIOCPServer->EndServer();
+		m_pIOCPServer->End();
 
 	}
 

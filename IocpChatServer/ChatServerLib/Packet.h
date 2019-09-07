@@ -1,15 +1,16 @@
 #pragma once
 #include <queue>
 
-#include "../../IocpNetLib/IOCPServerNet.h" //TODO 필요한 헤더파일만 포함하기
+#include "Define.h"
+//#include "../../IocpNetLib/IOCPServerNet.h" //TODO 필요한 헤더파일만 포함하기
 
 
-namespace Common {
-
-	const int MAX_PACKET_SIZE = 1024;
+namespace Common 
+{
 
 	// 100 ~ 1000 사이의 번호만 사용 가능!
-	enum class  PACKET_ID : UINT16 {
+	enum class  PACKET_ID : UINT16 
+	{
 		
 		/// ChatClient용 패킷 ID
 
@@ -67,23 +68,7 @@ namespace Common {
 		CHAT_ROOM_INVALID_ROOM_INDEX = 81,
 	};
 
-	enum class EVENT_TYPE : INT16 {
-		NONE = -1,
-		SPAWN_GROUP_I = 0,
-		SPAWN_GROUP_J = 1,
-		SPAWN_GROUP_L = 2,
-		SPAWN_GROUP_O = 3,
-		SPAWN_GROUP_S = 4,
-		SPAWN_GROUP_T = 5,
-		SPAWN_GROUP_Z = 6,
-		MOVE_LEFT = 7,
-		MOVE_RIGHT = 8,
-		MOVE_DOWN = 9,
-		ROTATE = 10,
-		DELETE_ROW = 11,
-
-	};
-
+	
 
 
 #pragma pack(push,1)
@@ -98,14 +83,16 @@ namespace Common {
 	const int MAX_USER_ID_LEN = 20;
 	const int MAX_USER_PW_LEN = 20;
 
-	struct LOGIN_REQUEST_PACKET : public PACKET_HEADER {
+	struct LOGIN_REQUEST_PACKET : public PACKET_HEADER 
+	{
 		char UserID[MAX_USER_ID_LEN+1];
 		char UserPW[MAX_USER_PW_LEN+1];
 	};
+	const size_t LOGIN_REQUEST_PACKET_SZIE = sizeof(LOGIN_REQUEST_PACKET);
 
 
-	struct LOGIN_RESPONSE_PACKET : public PACKET_HEADER {
-	public:
+	struct LOGIN_RESPONSE_PACKET : public PACKET_HEADER 
+	{
 		UINT16 Result;
 	};
 
@@ -118,18 +105,21 @@ namespace Common {
 		INT32 RoomIndex;
 	};
 
-	struct ROOM_ENTER_RESPONSE_PACKET : public PACKET_HEADER {
+	struct ROOM_ENTER_RESPONSE_PACKET : public PACKET_HEADER 
+	{
 		UINT16 Result;
 		char RivalUserID[MAX_USER_ID_LEN + 1] = {0, };
 	};
 
 
 	//- 룸 나가기 요청
-	struct ROOM_LEAVE_REQUEST_PACKET : public PACKET_HEADER {
+	struct ROOM_LEAVE_REQUEST_PACKET : public PACKET_HEADER 
+	{
 
 	};
 
-	struct ROOM_LEAVE_RESPONSE_PACKET : public PACKET_HEADER {
+	struct ROOM_LEAVE_RESPONSE_PACKET : public PACKET_HEADER 
+	{
 		UINT16 Result;
 	};
 

@@ -147,18 +147,18 @@ ChatServerLib::ChatServerConfig ParseConfig(int argc, char* argv[])
 	std::cout << "maxRoomCount: " << *maxRoomCount << std::endl;
 			
 
-	serverConfig.m_PortNumber = *port;
-	serverConfig.m_WorkThreadCount = *WorkThreadCount;
-	serverConfig.m_MaxRecvOverlappedBufferSize = *MaxRecvOverlappedBufferSize;
-	serverConfig.m_MaxSendOverlappedBufferSize = *MaxSendOverlappedBufferSize;
-	serverConfig.m_MaxRecvConnectionBufferCount = *MaxRecvConnectionBufferCount;
-	serverConfig.m_MaxSendConnectionBufferCount = *MaxSendConnectionBufferCount;
-	serverConfig.m_MaxPacketSize = *MaxPacketSize;
-	serverConfig.m_MaxConnectionCount = *MaxConnectionCount;
-	serverConfig.m_MaxMessagePoolCount = *MaxMessagePoolCount;
-	serverConfig.m_ExtraMessagePoolCount = *ExtraMessagePoolCount;
-	serverConfig.m_PerformancePacketMillisecondsTime = 0;
-	serverConfig.m_PostMessagesThreadsCount = 1;
+	serverConfig.PortNumber = *port;
+	serverConfig.WorkThreadCount = *WorkThreadCount;
+	serverConfig.MaxRecvOverlappedBufferSize = *MaxRecvOverlappedBufferSize;
+	serverConfig.MaxSendOverlappedBufferSize = *MaxSendOverlappedBufferSize;
+	serverConfig.MaxRecvConnectionBufferCount = *MaxRecvConnectionBufferCount;
+	serverConfig.MaxSendConnectionBufferCount = *MaxSendConnectionBufferCount;
+	serverConfig.MaxPacketSize = *MaxPacketSize;
+	serverConfig.MaxConnectionCount = *MaxConnectionCount;
+	serverConfig.MaxMessagePoolCount = *MaxMessagePoolCount;
+	serverConfig.ExtraMessagePoolCount = *ExtraMessagePoolCount;
+	serverConfig.PerformancePacketMillisecondsTime = 0;
+	serverConfig.PostMessagesThreadsCount = 1;
 
 	serverConfig.StartRoomNummber = *startRoomNumber;
 	serverConfig.MaxRoomCount = *maxRoomCount;

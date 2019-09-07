@@ -117,17 +117,17 @@ namespace NetLib
 		inline static LPTOP_LEVEL_EXCEPTION_FILTER g_previousExceptionFilter = nullptr;
 		
 	public:
-		static void Begin(void)
+		static void Begin()
 		{
 			SetErrorMode(SEM_FAILCRITICALERRORS);
 			g_previousExceptionFilter = SetUnhandledExceptionFilter(UnHandledExceptionFilter);
 		}
-		static void End(void)
+		static void End()
 		{
 			SetUnhandledExceptionFilter(g_previousExceptionFilter);
 		}
 
-		static bool CreateDirectories(void)
+		static bool CreateDirectories()
 		{
 			auto result = _waccess_s(DUMP_CHECK_PATH, 0);
 			if (result != 0)

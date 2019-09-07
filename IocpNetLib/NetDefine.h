@@ -10,18 +10,18 @@ namespace NetLib
 {
 	struct NetConfig
 	{
-		UINT16 m_PortNumber = 0;
-		INT32 m_WorkThreadCount = INVALID_VALUE;
-		INT32 m_MaxRecvOverlappedBufferSize = INVALID_VALUE;
-		INT32 m_MaxSendOverlappedBufferSize = INVALID_VALUE;
-		INT32 m_MaxRecvConnectionBufferCount = INVALID_VALUE;
-		INT32 m_MaxSendConnectionBufferCount = INVALID_VALUE;
-		INT32 m_MaxPacketSize = INVALID_VALUE;
-		INT32 m_MaxConnectionCount = INVALID_VALUE;
-		INT32 m_MaxMessagePoolCount = INVALID_VALUE;
-		INT32 m_ExtraMessagePoolCount = INVALID_VALUE;
-		INT32 m_PerformancePacketMillisecondsTime = INVALID_VALUE;
-		INT32 m_PostMessagesThreadsCount = INVALID_VALUE;
+		UINT16 PortNumber = 0;
+		INT32 WorkThreadCount = INVALID_VALUE;
+		INT32 MaxRecvOverlappedBufferSize = INVALID_VALUE;
+		INT32 MaxSendOverlappedBufferSize = INVALID_VALUE;
+		INT32 MaxRecvConnectionBufferCount = INVALID_VALUE;
+		INT32 MaxSendConnectionBufferCount = INVALID_VALUE;
+		INT32 MaxPacketSize = INVALID_VALUE;
+		INT32 MaxConnectionCount = INVALID_VALUE;
+		INT32 MaxMessagePoolCount = INVALID_VALUE;
+		INT32 ExtraMessagePoolCount = INVALID_VALUE;
+		INT32 PerformancePacketMillisecondsTime = INVALID_VALUE;
+		INT32 PostMessagesThreadsCount = INVALID_VALUE;
 	};
 
 	struct ConnectionNetConfig
@@ -34,19 +34,21 @@ namespace NetLib
 
 
 
-	enum E_OPERATION_TYPE : INT8
+	enum class MessageType : INT8
 	{
-		OP_NONE = 0,
+		None = 0,
+		Connection,
+		Close,
+		OnRecv
+	};
 
-		OP_SEND,
-		OP_RECV,
-		OP_ACCEPT,
+	enum class OperationType : INT8
+	{
+		None = 0,
 
-		OP_CONNECTION,
-		OP_CLOSE,
-		OP_RECV_PACKET,
-
-		OP_END
+		Send,
+		Recv,
+		Accept,
 	};
 
 	struct OVERLAPPED_EX
@@ -54,7 +56,7 @@ namespace NetLib
 		OVERLAPPED Overlapped;
 		WSABUF OverlappedExWsaBuf;
 
-		E_OPERATION_TYPE OverlappedExOperationType;
+		OperationType OverlappedExOperationType;
 
 		int	OverlappedExTotalByte;
 		DWORD OverlappedExRemainByte;
@@ -73,17 +75,18 @@ namespace NetLib
 
 	struct Message
 	{
-		E_OPERATION_TYPE OperationType = OP_NONE;
+		MessageType Type = MessageType::None;
 		char* pContents = nullptr;
 
-		void Clear(void)
+		void Clear()
 		{
-			OperationType = OP_NONE;
+			Type = MessageType::None;
 			pContents = nullptr;
 		}
-		void SetMessage(E_OPERATION_TYPE SetOperationType, char* pSetContents)
+
+		void SetMessage(MessageType msgType, char* pSetContents)
 		{
-			OperationType = SetOperationType;
+			Type = msgType;
 			pContents = pSetContents;
 		}
 	};

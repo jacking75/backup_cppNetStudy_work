@@ -16,17 +16,20 @@ namespace ChatServerLib
 
 	}
 
-	UINT16 RoomManager::EnterUser(int RoomIdx, User* pUser) {
-		if (RoomIdx <0 || RoomIdx > MAX_ROOM_COUNT || m_RoomList[RoomIdx] == nullptr) {
+	UINT16 RoomManager::EnterUser(int RoomIdx, User* pUser) 
+	{
+		if (RoomIdx <0 || RoomIdx > MAX_ROOM_COUNT || m_RoomList[RoomIdx] == nullptr) 
+		{
 			return (UINT16)Common::ERROR_CODE::ROOM_INVALID_INDEX;
 		}
-
-
+		
 		return m_RoomList[RoomIdx]->EnterUser(pUser);
 	}
 
-	UINT16 RoomManager::LeaveUser(int RoomIdx, User* pUser) {
-		if (RoomIdx <0 || RoomIdx >MAX_ROOM_COUNT || m_RoomList[RoomIdx] == nullptr) {
+	UINT16 RoomManager::LeaveUser(int RoomIdx, User* pUser) 
+	{
+		if (RoomIdx <0 || RoomIdx >MAX_ROOM_COUNT || m_RoomList[RoomIdx] == nullptr) 
+		{
 			return (UINT16)Common::ERROR_CODE::ROOM_INVALID_INDEX;
 		}
 
