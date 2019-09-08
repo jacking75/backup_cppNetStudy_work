@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <atomic>
 
 #define WIN32_LEAN_AND_MEAN 
 #include <WinSock2.h>
@@ -238,12 +239,12 @@ namespace NetLib
 		void SetConnectionIP(const char* szIP) { CopyMemory(m_szIP, szIP, MAX_IP_LENGTH); }
 		int GetIndex() { return m_Index; }
 
-		int IncrementRecvIORefCount() { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
-		int IncrementSendIORefCount() { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
-		int IncrementAcceptIORefCount() { return InterlockedIncrement(reinterpret_cast<LPLONG>(&m_AcceptIORefCount)); }
-		int DecrementRecvIORefCount() { return (m_RecvIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)) : 0); }
-		int DecrementSendIORefCount() { return (m_SendIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)) : 0); }
-		int DecrementAcceptIORefCount() { return (m_AcceptIORefCount ? InterlockedDecrement(reinterpret_cast<LPLONG>(&m_AcceptIORefCount)) : 0); }
+		void IncrementRecvIORefCount() { InterlockedIncrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
+		void IncrementSendIORefCount() { InterlockedIncrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
+		void IncrementAcceptIORefCount() { ++m_AcceptIORefCount; }
+		void DecrementRecvIORefCount() { InterlockedDecrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
+		void DecrementSendIORefCount() { InterlockedDecrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
+		void DecrementAcceptIORefCount() { --m_AcceptIORefCount; }
 
 		bool IsConnect() { return m_IsConnect; }
 
@@ -393,8 +394,8 @@ namespace NetLib
 		//TODO 아래 함수를 제거하여 IO 에러가 발생해서 접속을 짤라야하면 바로 짜를 수 있도록 하자
 		DWORD m_SendIORefCount = 0; 
 		DWORD m_RecvIORefCount = 0; 
-		DWORD m_AcceptIORefCount = 0; 
-
+		std::atomic<short> m_AcceptIORefCount = 0;
+		
 		Message m_ConnectionMsg;
 		Message m_CloseMsg;
 	};
