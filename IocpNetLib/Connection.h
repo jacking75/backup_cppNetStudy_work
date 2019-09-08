@@ -13,16 +13,14 @@
 
 namespace NetLib
 {	
-	//TODO 델리게이션을 사용하여 IOCPServer 클래스의 HandleExceptionCloseConnection 함수를 호출 할 수 있어야 한다.
-
 	class Connection
 	{
 	public:	
 		Connection() {}
 		~Connection() {}
 
-		Message* GetConnectionMsg() { return m_pConnectionMsg; } 
-		Message* GetCloseMsg() { return m_pCloseMsg; }
+		Message* GetConnectionMsg() { return &m_ConnectionMsg; } 
+		Message* GetCloseMsg() { return &m_CloseMsg; }
 		
 
 		void Init(const SOCKET listenSocket, const int index, const ConnectionNetConfig config)
@@ -39,12 +37,14 @@ namespace NetLib
 			m_RingRecvBuffer.Create(config.MaxRecvConnectionBufferCount);
 			m_RingSendBuffer.Create(config.MaxSendConnectionBufferCount);
 
-			m_pConnectionMsg = new Message { MessageType::Connection, nullptr };
-			m_pCloseMsg = new Message{ MessageType::Close, nullptr };
+			m_ConnectionMsg.Type = MessageType::Connection;
+			m_ConnectionMsg.pContents = nullptr;
+			m_CloseMsg.Type = MessageType::Close;
+			m_CloseMsg.pContents = nullptr;
 
 			BindAcceptExSocket();
 		}
-	
+						
 		bool CloseComplete()
 		{			
 			//소켓만 종료한 채로 전부 처리될 때까지 대기
@@ -395,7 +395,7 @@ namespace NetLib
 		DWORD m_RecvIORefCount = 0; 
 		DWORD m_AcceptIORefCount = 0; 
 
-		Message* m_pConnectionMsg = nullptr;
-		Message* m_pCloseMsg = nullptr;
+		Message m_ConnectionMsg;
+		Message m_CloseMsg;
 	};
 }

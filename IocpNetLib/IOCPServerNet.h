@@ -652,7 +652,7 @@ namespace NetLib
 
 		void DoSend(OVERLAPPED_EX* pOverlappedEx, const DWORD ioSize)
 		{
-			Connection* pConnection = GetConnection(pOverlappedEx->ConnectionIndex);
+			auto pConnection = GetConnection(pOverlappedEx->ConnectionIndex);
 			if (pConnection == nullptr)
 			{
 				return;
@@ -764,7 +764,6 @@ namespace NetLib
 	private:
 		NetConfig m_NetConfig;
 
-		std::mutex m_MUTEX;
 		SOCKET m_ListenSocket = INVALID_SOCKET;
 
 		std::vector<Connection*> m_Connections;
