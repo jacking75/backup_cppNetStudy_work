@@ -8,6 +8,7 @@ namespace ChatServerLib
 {
 	struct ChatServerConfig : NetLib::NetConfig
 	{
+		int PostMessagesThreadsCount = 1;
 		int StartRoomNummber = 0;
 		int MaxRoomCount = 0;
 		int MaxRoomUserCount = 0;
@@ -20,14 +21,13 @@ namespace ChatServerLib
 			netConfig.WorkThreadCount = WorkThreadCount;
 			netConfig.MaxRecvOverlappedBufferSize = MaxRecvOverlappedBufferSize;
 			netConfig.MaxSendOverlappedBufferSize = MaxSendOverlappedBufferSize;
-			netConfig.MaxRecvConnectionBufferCount = MaxRecvConnectionBufferCount;
-			netConfig.MaxSendConnectionBufferCount = MaxSendConnectionBufferCount;
+			netConfig.ConnectionMaxRecvBufferSize = ConnectionMaxRecvBufferSize;
+			netConfig.ConnectionMaxSendBufferSize = ConnectionMaxSendBufferSize;
 			netConfig.MaxPacketSize = MaxPacketSize;
 			netConfig.MaxConnectionCount = MaxConnectionCount;
 			netConfig.MaxMessagePoolCount = MaxMessagePoolCount;
 			netConfig.ExtraMessagePoolCount = ExtraMessagePoolCount;
 			netConfig.PerformancePacketMillisecondsTime = PerformancePacketMillisecondsTime;
-			netConfig.PostMessagesThreadsCount = PostMessagesThreadsCount;
 			
 			return netConfig;
 		}

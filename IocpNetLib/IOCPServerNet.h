@@ -199,8 +199,7 @@ namespace NetLib
 
 		int GetMaxPacketSize() { return m_NetConfig.MaxPacketSize; }
 		int GetMaxConnectionCount() { return m_NetConfig.MaxConnectionCount; }
-		int GetPostMessagesThreadsCount() { return m_NetConfig.PostMessagesThreadsCount; }
-
+		
 
 	private:		
 		NetResult CreateListenSocket()
@@ -286,8 +285,8 @@ namespace NetLib
 		bool CreateConnections()
 		{
 			ConnectionNetConfig config;
-			config.MaxSendConnectionBufferCount = m_NetConfig.MaxSendConnectionBufferCount;
-			config.MaxRecvConnectionBufferCount = m_NetConfig.MaxRecvConnectionBufferCount;
+			config.MaxSendBufferSize = m_NetConfig.ConnectionMaxSendBufferSize;
+			config.MaxRecvBufferSize = m_NetConfig.ConnectionMaxRecvBufferSize;
 			config.MaxRecvOverlappedBufferSize = m_NetConfig.MaxRecvOverlappedBufferSize;
 			config.MaxSendOverlappedBufferSize = m_NetConfig.MaxSendOverlappedBufferSize;
 

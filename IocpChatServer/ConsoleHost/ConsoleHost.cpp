@@ -159,8 +159,8 @@ ChatServerLib::ChatServerConfig ParseConfig(int argc, char* argv[])
 	serverConfig.WorkThreadCount = *WorkThreadCount;
 	serverConfig.MaxRecvOverlappedBufferSize = *MaxRecvOverlappedBufferSize;
 	serverConfig.MaxSendOverlappedBufferSize = *MaxSendOverlappedBufferSize;
-	serverConfig.MaxRecvConnectionBufferCount = *MaxRecvConnectionBufferCount;
-	serverConfig.MaxSendConnectionBufferCount = *MaxSendConnectionBufferCount;
+	serverConfig.ConnectionMaxRecvBufferSize = *MaxRecvConnectionBufferCount;
+	serverConfig.ConnectionMaxSendBufferSize = *MaxSendConnectionBufferCount;
 	serverConfig.MaxPacketSize = *MaxPacketSize;
 	serverConfig.MaxConnectionCount = *MaxConnectionCount;
 	serverConfig.MaxMessagePoolCount = *MaxMessagePoolCount;

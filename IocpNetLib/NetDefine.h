@@ -12,22 +12,21 @@ namespace NetLib
 	{
 		UINT16 PortNumber = 0;
 		INT32 WorkThreadCount = INVALID_VALUE;
-		INT32 MaxRecvOverlappedBufferSize = INVALID_VALUE;
-		INT32 MaxSendOverlappedBufferSize = INVALID_VALUE;
-		INT32 MaxRecvConnectionBufferCount = INVALID_VALUE;
-		INT32 MaxSendConnectionBufferCount = INVALID_VALUE;
+		INT32 MaxRecvOverlappedBufferSize = INVALID_VALUE; // 한번에 받을 수 있는 최대 크기
+		INT32 MaxSendOverlappedBufferSize = INVALID_VALUE; // 한번에 보낼 수 있는 최대 크기
+		INT32 ConnectionMaxRecvBufferSize = INVALID_VALUE; // 받기용 버퍼의 최대 크기(데이터를 받으면 여기에 저장되고, 데이터의 위치가 애플리케이션에 전달되므로 넉넉하게 커야 한다)
+		INT32 ConnectionMaxSendBufferSize = INVALID_VALUE; // 보내기용 버퍼의 최대 크기
 		INT32 MaxPacketSize = INVALID_VALUE;
 		INT32 MaxConnectionCount = INVALID_VALUE;
 		INT32 MaxMessagePoolCount = INVALID_VALUE;
 		INT32 ExtraMessagePoolCount = INVALID_VALUE;
 		INT32 PerformancePacketMillisecondsTime = INVALID_VALUE;
-		INT32 PostMessagesThreadsCount = INVALID_VALUE;
 	};
 
 	struct ConnectionNetConfig
 	{
-		INT32 MaxRecvConnectionBufferCount;
-		INT32 MaxSendConnectionBufferCount;
+		INT32 MaxRecvBufferSize;
+		INT32 MaxSendBufferSize;
 		INT32 MaxRecvOverlappedBufferSize;
 		INT32 MaxSendOverlappedBufferSize;
 	};

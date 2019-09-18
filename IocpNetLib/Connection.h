@@ -35,8 +35,8 @@ namespace NetLib
 
 			m_pRecvOverlappedEx = new OVERLAPPED_EX(index);
 			m_pSendOverlappedEx = new OVERLAPPED_EX(index);
-			m_RingRecvBuffer.Create(config.MaxRecvConnectionBufferCount);
-			m_RingSendBuffer.Create(config.MaxSendConnectionBufferCount);
+			m_RingRecvBuffer.Create(config.MaxRecvBufferSize);
+			m_RingSendBuffer.Create(config.MaxSendBufferSize);
 
 			m_ConnectionMsg.Type = MessageType::Connection;
 			m_ConnectionMsg.pContents = nullptr;
