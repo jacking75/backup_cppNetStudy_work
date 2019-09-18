@@ -520,132 +520,83 @@ namespace NetLib
 
 		void DoRecv(OVERLAPPED_EX* pOverlappedEx, const DWORD ioSize)
 		{
-			const int PACKET_HEADER_LENGTH = 5;
-			const int PACKET_SIZE_LENGTH = 2;
-			const int PACKET_TYPE_LENGTH = 2;
-
 			Connection* pConnection = GetConnection(pOverlappedEx->ConnectionIndex);
 			if (pConnection == nullptr)
 			{
 				return;
 			}
 
-			//TODO: 아래 코드들은 거의 대분 Connection 클래스에 함수를 만들어서 그쪽으로 넣어야 하지 않을까?. 함수도 너크 크지 않게 하고...
 			pConnection->DecrementRecvIORefCount();
-
-			short packetSize = 0;
-			int remainByte = pOverlappedEx->OverlappedExRemainByte;
-			char* pCurrent = nullptr;
-			char* pNext = nullptr;
-
+			
 			pOverlappedEx->OverlappedExWsaBuf.buf = pOverlappedEx->pOverlappedExSocketMessage;
 			pOverlappedEx->OverlappedExRemainByte += ioSize;
-
-			if (PACKET_HEADER_LENGTH <= pOverlappedEx->OverlappedExRemainByte)
-			{
-				CopyMemory(&packetSize, pOverlappedEx->OverlappedExWsaBuf.buf, PACKET_SIZE_LENGTH);
-			}			
-
-			if (packetSize <= 0 || packetSize > pConnection->RecvBufferSize())
-			{
-				char logmsg[128] = { 0, };
-				sprintf_s(logmsg, "IOCPServer::DoRecv. Arrived Wrong Packet.");
-				LogFuncPtr((int)LogLevel::Error, logmsg);
-
-				if (pConnection->CloseComplete())
-				{
-					HandleExceptionCloseConnection(pConnection);
-				}
-				return;
-			}
-
-			pOverlappedEx->OverlappedExTotalByte = packetSize;
-
-			//아직 데이터를 받지 못한 상황
-			if ((pOverlappedEx->OverlappedExRemainByte < static_cast<DWORD>(packetSize)))
-			{
-				remainByte = pOverlappedEx->OverlappedExRemainByte;
-				pNext = pOverlappedEx->OverlappedExWsaBuf.buf;
-			}
-			//하나 이상의 데이터를 다 받은 상황
-			else
-			{
-				pCurrent = pOverlappedEx->OverlappedExWsaBuf.buf;
-				auto currentSize = packetSize;
-
-				remainByte = pOverlappedEx->OverlappedExRemainByte;
-
-				Message* pMsg = m_pMsgPool->AllocMsg();
-				if (pMsg == nullptr)
-				{
-					return;
-				}
-
-				pMsg->SetMessage(MessageType::OnRecv, pCurrent);
-				if (PostNetMessage(pConnection, pMsg, currentSize) != NetResult::Success)
-				{
-					m_pMsgPool->DeallocMsg(pMsg);
-					return;
-				}
-
-				remainByte -= currentSize;
-				pNext = pCurrent + currentSize;
-
-				while (true)
-				{
-					//TODO 패킷 분해 부분을 가상 함수로 만들기 
-					if (remainByte >= PACKET_HEADER_LENGTH)
-					{
-						CopyMemory(&packetSize, pNext, PACKET_SIZE_LENGTH);
-						currentSize = packetSize;
-
-						if (0 >= packetSize || packetSize > pConnection->RecvBufferSize())
-						{
-							char logmsg[128] = { 0, }; sprintf_s(logmsg, "IOCPServer::DoRecv. Arrived Wrong Packet.");
-							LogFuncPtr((int)LogLevel::Error, logmsg);
-
-							if (pConnection->CloseComplete())
-							{
-								HandleExceptionCloseConnection(pConnection);
-							}
-							return;
-						}
-						pOverlappedEx->OverlappedExTotalByte = currentSize;
-						if (remainByte >= currentSize)
-						{
-							pMsg = m_pMsgPool->AllocMsg();
-							if (pMsg == nullptr)
-							{
-								return;
-							}
-
-							pMsg->SetMessage(MessageType::OnRecv, pNext);
-							if (PostNetMessage(pConnection, pMsg, currentSize) != NetResult::Success)
-							{
-								m_pMsgPool->DeallocMsg(pMsg);
-								return;
-							}
-
-							remainByte -= currentSize;
-							pNext += currentSize;
-						}
-						else
-						{
-							break;
-						}
-					}
-					else
-					{
-						break;
-					}
-				}
-			}
+												
+			auto remainByte = pOverlappedEx->OverlappedExRemainByte;
+			auto pNext = pOverlappedEx->OverlappedExWsaBuf.buf;
+			
+			PacketForwardingLoop(pConnection, remainByte, pNext);
 
 			if (pConnection->PostRecv(pNext, remainByte) != NetResult::Success)
 			{
 				if (pConnection->CloseComplete())
 				{
 					HandleExceptionCloseConnection(pConnection);
+				}
+			}
+		}
+
+		void PacketForwardingLoop(Connection* pConnection, DWORD& remainByte, char* pBuffer)
+		{
+			//TODO 패킷 분해 부분을 가상 함수로 만들기 
+
+			const int PACKET_HEADER_LENGTH = 5;
+			const int PACKET_SIZE_LENGTH = 2;
+			const int PACKET_TYPE_LENGTH = 2;
+			short packetSize = 0;
+
+			while (true)
+			{
+				if (remainByte < PACKET_HEADER_LENGTH)
+				{
+					break;
+				}
+
+				CopyMemory(&packetSize, pBuffer, PACKET_SIZE_LENGTH);
+				auto currentSize = packetSize;
+
+				if (0 >= packetSize || packetSize > pConnection->RecvBufferSize())
+				{
+					char logmsg[128] = { 0, }; sprintf_s(logmsg, "IOCPServer::DoRecv. Arrived Wrong Packet.");
+					LogFuncPtr((int)LogLevel::Error, logmsg);
+
+					if (pConnection->CloseComplete())
+					{
+						HandleExceptionCloseConnection(pConnection);
+					}
+					return;
+				}
+
+				if (remainByte >= (DWORD)currentSize)
+				{
+					auto pMsg = m_pMsgPool->AllocMsg();
+					if (pMsg == nullptr)
+					{
+						return;
+					}
+
+					pMsg->SetMessage(MessageType::OnRecv, pBuffer);
+					if (PostNetMessage(pConnection, pMsg, currentSize) != NetResult::Success)
+					{
+						m_pMsgPool->DeallocMsg(pMsg);
+						return;
+					}
+
+					remainByte -= currentSize;
+					pBuffer += currentSize;
+				}
+				else
+				{
+					break;
 				}
 			}
 		}

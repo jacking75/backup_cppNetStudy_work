@@ -82,18 +82,11 @@ namespace NetLib
 		{
 			std::lock_guard<std::mutex> Lock(m_MUTEX);
 
-			if (m_pRecvOverlappedEx != nullptr)
-			{
-				m_pRecvOverlappedEx->OverlappedExRemainByte = 0;
-				m_pRecvOverlappedEx->OverlappedExTotalByte = 0;
-			}
-
-			if (m_pSendOverlappedEx != nullptr)
-			{
-				m_pSendOverlappedEx->OverlappedExRemainByte = 0;
-				m_pSendOverlappedEx->OverlappedExTotalByte = 0;
-			}
-
+			m_pRecvOverlappedEx->OverlappedExRemainByte = 0;
+			m_pRecvOverlappedEx->OverlappedExTotalByte = 0;
+			m_pSendOverlappedEx->OverlappedExRemainByte = 0;
+			m_pSendOverlappedEx->OverlappedExTotalByte = 0;
+			
 			Init();
 			return BindAcceptExSocket();
 		}
@@ -176,8 +169,8 @@ namespace NetLib
 
 			if (InterlockedCompareExchange(reinterpret_cast<LPLONG>(&m_IsSendable), FALSE, TRUE))
 			{
-				auto readSize = 0;
-				char* pBuf = m_RingSendBuffer.GetBuffer(m_SendBufSize, readSize);
+				auto reservedSize = 0;
+				char* pBuf = m_RingSendBuffer.GetBuffer(m_SendBufSize, reservedSize);
 				if (pBuf == nullptr)
 				{
 					InterlockedExchange(reinterpret_cast<LPLONG>(&m_IsSendable), TRUE);
@@ -186,12 +179,12 @@ namespace NetLib
 
 				ZeroMemory(&m_pSendOverlappedEx->Overlapped, sizeof(OVERLAPPED));
 
-				m_pSendOverlappedEx->OverlappedExWsaBuf.len = readSize;
+				m_pSendOverlappedEx->OverlappedExWsaBuf.len = reservedSize;
 				m_pSendOverlappedEx->OverlappedExWsaBuf.buf = pBuf;
 				m_pSendOverlappedEx->ConnectionIndex = GetIndex();
 
 				m_pSendOverlappedEx->OverlappedExRemainByte = 0;
-				m_pSendOverlappedEx->OverlappedExTotalByte = readSize;
+				m_pSendOverlappedEx->OverlappedExTotalByte = reservedSize;
 				m_pSendOverlappedEx->OverlappedExOperationType = OperationType::Send;
 
 				IncrementSendIORefCount();
