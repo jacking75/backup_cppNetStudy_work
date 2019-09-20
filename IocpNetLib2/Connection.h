@@ -10,10 +10,16 @@
 #include "RingBuffer.h"
 #include "NetDefine.h"
 
-//TODO 네트워크 api를 호출하는 부분은 따로 함수로 분리한다
 
 namespace NetLib
 {	
+	//TODO lock 방법 수정하기 
+	//세션의 send,recv는 스레드 세이프 하다. 
+	//IOCP 스레드가 아닌 곳에서 close 하는 경우는 스레드 세이프하도록 IOCP에 메시지를 보내서 접속을 끊도록 한다
+
+	//void NetResult ResetConnection()
+	//bool BindIOCP(const HANDLE hWorkIOCP)
+
 	class Connection
 	{
 	public:	
@@ -23,11 +29,30 @@ namespace NetLib
 		Message* GetConnectionMsg() { return &m_ConnectionMsg; } 
 		Message* GetCloseMsg() { return &m_CloseMsg; }
 		
+		SOCKET GetClientSocket() { return m_ClientSocket; }
 
-		void Init(const SOCKET listenSocket, const int index, const ConnectionNetConfig config)
+		void SetConnectionIP(const char* szIP) { CopyMemory(m_szIP, szIP, MAX_IP_LENGTH); }
+		INT32 GetIndex() { return m_Index; }
+
+		bool IsConnect() { return m_IsConnect; }
+
+		HANDLE GetIOCPHandle() { return m_hIOCP; }
+
+		void SetNetStateConnection() { InterlockedExchange(reinterpret_cast<LPLONG>(&m_IsConnect), TRUE); }
+
+		BOOL SetNetStateDisConnection() { return InterlockedCompareExchange(reinterpret_cast<LPLONG>(&m_IsConnect), FALSE, TRUE); }
+
+		INT32 RecvBufferSize() { return m_RingRecvBuffer.GetBufferSize(); }
+
+		char* RecvBufferBeginPos() { return m_RingRecvBuffer.GetBeginMark(); }
+
+		void RecvBufferReadCompleted(const INT32 size) { m_RingRecvBuffer.ReleaseBuffer(size); }
+
+		void Init(const SOCKET listenSocket, HANDLE iocpHandle, const INT32 index, const ConnectionNetConfig config)
 		{
-			m_ListenSocket = listenSocket;
 			m_Index = index;
+			m_hIOCP = iocpHandle;
+			m_ListenSocket = listenSocket;			
 			m_RecvBufSize = config.MaxRecvOverlappedBufferSize;
 			m_SendBufSize = config.MaxSendOverlappedBufferSize;
 
@@ -35,6 +60,9 @@ namespace NetLib
 
 			m_pRecvOverlappedEx = new OVERLAPPED_EX(index);
 			m_pSendOverlappedEx = new OVERLAPPED_EX(index);
+			m_pDisConnectOverlappedEx = new OVERLAPPED_EX(index);
+			m_pDisConnectOverlappedEx->OverlappedExOperationType = OperationType::DisConnect;
+
 			m_RingRecvBuffer.Create(config.MaxRecvBufferSize);
 			m_RingSendBuffer.Create(config.MaxSendBufferSize);
 
@@ -46,38 +74,45 @@ namespace NetLib
 			BindAcceptExSocket();
 		}
 						
+		//TODO 코드 수정 확인: IOCP 스레드에서 호출할 때만 가능하다.  반환 값은 void로 한다
+		// 파라미터로 close 메시지 보낼지 말지 알려준다
 		bool CloseComplete()
 		{			
-			//소켓만 종료한 채로 전부 처리될 때까지 대기
-			if (IsConnect() && (m_AcceptIORefCount != 0 || m_RecvIORefCount != 0 || m_SendIORefCount != 0) )
-			{
-				DisconnectConnection();
-				return false;
-			}
-
-			//한번만 접속 종료 처리를 하기 위해 사용
-			if (InterlockedCompareExchange(reinterpret_cast<LPLONG>(&m_IsClosed), TRUE, FALSE) == static_cast<long>(FALSE))
-			{
-				return true;
-			}
-
-			return false;
-		}
-		
-		void DisconnectConnection()
-		{
-			SetNetStateDisConnection();
-
-			std::lock_guard<std::mutex> Lock(m_MUTEX);
-
-			//shutdown(m_ClientSocket, SD_BOTH);
 			if (m_ClientSocket != INVALID_SOCKET)
 			{
 				closesocket(m_ClientSocket);
 				m_ClientSocket = INVALID_SOCKET;
-			}			
+			}
+
+			//TODO 아래 함수 호출해야 한다
+			/*if (PostNetMessage(pConnection, pConnection->GetCloseMsg()) != NetResult::Success)
+			{
+				pConnection->ResetConnection();
+			}*/
+			return false;
 		}
 		
+		void DisConnectAsync()
+		{
+			if (SetNetStateDisConnection() == FALSE)
+			{
+				return;
+			}
+
+			auto result = PostQueuedCompletionStatus(
+				m_hIOCP,
+				0,
+				reinterpret_cast<ULONG_PTR>(this),
+				reinterpret_cast<LPOVERLAPPED>(m_pDisConnectOverlappedEx));
+
+			if (!result)
+			{
+				char logmsg[256] = { 0, };
+				sprintf_s(logmsg, "Connection::DisConnectAsync - PostQueuedCompletionStatus(). error:%d", WSAGetLastError());
+				LogFuncPtr((int)LogLevel::Error, logmsg);
+			}
+		}
+					
 		NetResult ResetConnection()
 		{
 			std::lock_guard<std::mutex> Lock(m_MUTEX);
@@ -91,7 +126,7 @@ namespace NetLib
 			return BindAcceptExSocket();
 		}
 		
-		bool BindIOCP(const HANDLE hWorkIOCP)
+		bool BindIOCP()
 		{
 			std::lock_guard<std::mutex> Lock(m_MUTEX);
 
@@ -102,11 +137,11 @@ namespace NetLib
 
 			auto hIOCPHandle = CreateIoCompletionPort(
 				reinterpret_cast<HANDLE>(m_ClientSocket),
-				hWorkIOCP,
+				m_hIOCP,
 				reinterpret_cast<ULONG_PTR>(this),
 				0);
 
-			if (hIOCPHandle == INVALID_HANDLE_VALUE || hWorkIOCP != hIOCPHandle)
+			if (hIOCPHandle == INVALID_HANDLE_VALUE)
 			{
 				return false;
 			}
@@ -159,7 +194,7 @@ namespace NetLib
 			return NetResult::Success;
 		}
 		
-		bool PostSend(const int sendSize)
+		bool PostSend(const INT32 sendSize)
 		{
 			//남은 패킷이 존재하는지 확인하기 위한 과정
 			if (sendSize > 0)
@@ -225,41 +260,14 @@ namespace NetLib
 
 			return NetResult::Success;
 		}
-
-
-		SOCKET GetClientSocket() { return m_ClientSocket; }
-
-		void SetConnectionIP(const char* szIP) { CopyMemory(m_szIP, szIP, MAX_IP_LENGTH); }
-		int GetIndex() { return m_Index; }
-
+		
 		void IncrementRecvIORefCount() { InterlockedIncrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
 		void IncrementSendIORefCount() { InterlockedIncrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
 		void IncrementAcceptIORefCount() { ++m_AcceptIORefCount; }
 		void DecrementRecvIORefCount() { InterlockedDecrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
 		void DecrementSendIORefCount() { InterlockedDecrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
 		void DecrementAcceptIORefCount() { --m_AcceptIORefCount; }
-
-		bool IsConnect() { return m_IsConnect; }
-
-		void SetNetStateConnection()
-		{
-			InterlockedExchange(reinterpret_cast<LPLONG>(&m_IsConnect), TRUE);
-		}
-
-		void SetNetStateDisConnection()
-		{
-			InterlockedExchange(reinterpret_cast<LPLONG>(&m_IsConnect), FALSE);
-		}
-
-		INT32 RecvBufferSize() { return m_RingRecvBuffer.GetBufferSize(); }
-
-		char* RecvBufferBeginPos() {	return m_RingRecvBuffer.GetBeginMark();	}
-
-		void RecvBufferReadCompleted(const INT32 size)
-		{
-			m_RingRecvBuffer.ReleaseBuffer(size);
-		}
-
+				
 		bool SetNetAddressInfo()
 		{
 			SOCKADDR* pLocalSockAddr = nullptr;
@@ -359,16 +367,20 @@ namespace NetLib
 
 
 	private:
-		int m_Index = INVALID_VALUE;
-		//TODO ConnectionUnique 추가하자
+		INT32 m_Index = INVALID_VALUE;		
+		UINT64 m_UniqueId = 0; //TODO 만약 사용 안하면 삭제하기
 				
+		HANDLE m_hIOCP = INVALID_HANDLE_VALUE;
+
 		SOCKET m_ClientSocket = INVALID_SOCKET;
 		SOCKET m_ListenSocket = INVALID_SOCKET;
 
 		std::mutex m_MUTEX;
 
+		//TODO 정적 할당으로 바꾼다
 		OVERLAPPED_EX* m_pRecvOverlappedEx = nullptr;
 		OVERLAPPED_EX* m_pSendOverlappedEx = nullptr;
+		OVERLAPPED_EX* m_pDisConnectOverlappedEx = nullptr;
 
 		RingBuffer m_RingRecvBuffer;
 		RingBuffer m_RingSendBuffer;
@@ -379,8 +391,8 @@ namespace NetLib
 		BOOL m_IsConnect = FALSE;
 		BOOL m_IsSendable = TRUE;
 
-		int	m_RecvBufSize = INVALID_VALUE;
-		int	m_SendBufSize = INVALID_VALUE;
+		INT32	m_RecvBufSize = INVALID_VALUE;
+		INT32	m_SendBufSize = INVALID_VALUE;
 				
 		char m_szIP[MAX_IP_LENGTH] = { 0, };
 

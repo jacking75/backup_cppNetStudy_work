@@ -17,17 +17,19 @@
 
 namespace NetLib
 {
-	//TODO 너무 크니 적절하게 분해하자
-
 	//TODO 모든 세션을 주기적으로 조사 기능 구현하기
 	// - 연결이 끊어졌는데 재 사용하고 있는지 조사하기
 	
 	//TODO 코어수 이상의 iocp 객체를 가지고 각 객체별 접근은 1스래드로 한다
-	//    쓰기는 iocp 스레드에서 일괄적으로 처리한다
-	//    iocp 스레드는 무한 대기하지 않고 쓰기 간격만큼 깨어난다(?)
 
-	//TODO GQCSex 함수를 사용한다
+	//TODO 보내기도 POstQuerue를 사용하여 해당 워크 스레드에서 처리하도록 한다.
 
+	//TODO iocp 스레드는 무한 대기하지 않고 쓰기 간격만큼 깨어난다(?)
+	// acceptThread는 특정 간격마다 종료된 세션을 비동기 accept 호출한다
+	// workThread는 특정 간격마다 보내기 처리를 한다.
+	
+
+	
 	struct OVERLAPPED_EX;
 	class Connection;
 	//class MessagePool;
@@ -52,7 +54,7 @@ namespace NetLib
 				return result;
 			}
 
-			result = CreateHandleIOCP();
+			result = CreateHandleIOCP(netConfig.WorkThreadCount);
 			if (result != NetResult::Success)
 			{
 				return result;
@@ -91,20 +93,33 @@ namespace NetLib
 		{
 			LogFuncPtr((int)LogLevel::Info, "IOCPServer::EndServer - Start");
 
-			if (m_hWorkIOCP != INVALID_HANDLE_VALUE)
+			m_IsRunWorkThread = false;
+						
+			if (m_hAcceptWorkIOCP != INVALID_HANDLE_VALUE)
 			{
-				m_IsRunWorkThread = false;
-				CloseHandle(m_hWorkIOCP);
-								
-				for (int i = 0; i < m_WorkThreads.size(); ++i)
+				CloseHandle(m_hAcceptWorkIOCP);
+
+				if (m_AccetpThread.joinable())
 				{
-					if (m_WorkThreads[i].get()->joinable())
-					{
-						m_WorkThreads[i].get()->join();
-					}
-				}												
+					m_AccetpThread.join();
+				}				
 			}
-			
+
+
+			auto index = 0;
+			for (auto handel : m_WrokIOCPList)
+			{
+				CloseHandle(handel);
+
+				if (m_WorkThreads[index].joinable())
+				{
+					m_WorkThreads[index].join();
+				}
+
+				++index;
+			}
+			m_WrokIOCPList.clear();
+	
 
 			if (m_hLogicIOCP != INVALID_HANDLE_VALUE)
 			{
@@ -150,18 +165,18 @@ namespace NetLib
 				return false;
 			}
 
-			
+			//TODO 이름(혹은 행동) 바꾸기  
+			// DoPostConnection, DoPostClose
 			switch (pMsg->Type)
 			{
 			case MessageType::Connection:
-				DoPostConnection(pConnection, pMsg, msgOperationType, connectionIndex);
+				ForwardingNetOnConnectMsg(pConnection, pMsg, msgOperationType, connectionIndex);
 				break;
 			case MessageType::Close:
-				//TODO 재 사용에 딜레이를 주도록 한다. 이유는 재 사용으로 가능 도중 IOCP 워크 스레드에서 이 세션이 호출될 수도 있다. 
-				DoPostClose(pConnection, pMsg, msgOperationType, connectionIndex);
+				ForwardingNetOnDisConnectMsg(pConnection, pMsg, msgOperationType, connectionIndex);
 				break;
 			case MessageType::OnRecv:
-				DoPostRecvPacket(pConnection, pMsg, msgOperationType, connectionIndex, pBuf, copySize, ioSize);
+				ForwardingNetOnRecvMsg(pConnection, pMsg, msgOperationType, connectionIndex, pBuf, copySize, ioSize);
 				m_pMsgPool->DeallocMsg(pMsg);
 				break;
 			}
@@ -185,10 +200,7 @@ namespace NetLib
 			}
 			else if (result == NetResult::ReservedSendPacketBuffer_Empty_Buffer)
 			{
-				if (pConnection->CloseComplete())
-				{
-					HandleExceptionCloseConnection(pConnection);
-				}
+				pConnection->DisConnectAsync();
 				return;
 			}
 
@@ -196,10 +208,7 @@ namespace NetLib
 
 			if (pConnection->PostSend(packetSize) == false)
 			{
-				if (pConnection->CloseComplete())
-				{
-					HandleExceptionCloseConnection(pConnection);
-				}
+				pConnection->DisConnectAsync();
 			}
 		}
 
@@ -243,12 +252,23 @@ namespace NetLib
 			return NetResult::Success;
 		}
 
-		NetResult CreateHandleIOCP()
+		NetResult CreateHandleIOCP(const int threadCount)
 		{
-			m_hWorkIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
-			if (m_hWorkIOCP == INVALID_HANDLE_VALUE)
+			m_hAcceptWorkIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 1);
+			if (m_hAcceptWorkIOCP == INVALID_HANDLE_VALUE)
 			{
-				return NetResult::fail_handleiocp_work;
+				return NetResult::fail_handleiocp_accept;
+			}
+
+			for (int i = 0; i < threadCount; ++i)
+			{
+				auto handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 0);
+				if (handle == INVALID_HANDLE_VALUE)
+				{
+					return NetResult::fail_handleiocp_work;
+				}
+
+				m_WrokIOCPList.push_back(handle);
 			}
 
 			m_hLogicIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, NULL, 1);
@@ -275,11 +295,11 @@ namespace NetLib
 		{
 			auto hIOCPHandle = CreateIoCompletionPort(
 				reinterpret_cast<HANDLE>(m_ListenSocket),
-				m_hWorkIOCP,
+				m_hAcceptWorkIOCP,
 				0,
 				0);
 
-			if (hIOCPHandle == INVALID_HANDLE_VALUE || m_hWorkIOCP != hIOCPHandle)
+			if (hIOCPHandle == INVALID_HANDLE_VALUE || m_hAcceptWorkIOCP != hIOCPHandle)
 			{
 				return false;
 			}
@@ -298,8 +318,10 @@ namespace NetLib
 
 			for (int i = 0; i < m_NetConfig.MaxConnectionCount; ++i)
 			{
+				auto iocpIndex = ConnectionWorkIOCPIndex(i, m_NetConfig.WorkThreadCount, m_NetConfig.MaxConnectionCount);
+
 				auto pConnection = new Connection();
-				pConnection->Init(m_ListenSocket, i, config);
+				pConnection->Init(m_ListenSocket, m_WrokIOCPList[iocpIndex], i, config);
 				m_Connections.push_back(pConnection);
 			}
 
@@ -345,15 +367,17 @@ namespace NetLib
 				return false;
 			}
 
+			m_AccetpThread = std::thread([&]() { AcceptThread(); });
+
 			for (int i = 0; i < m_NetConfig.WorkThreadCount; ++i)
 			{
-				m_WorkThreads.push_back(std::make_unique<std::thread>([&]() {WorkThread(); }));
+				m_WorkThreads.emplace_back([&]() { WorkThread(i); });
 			}
 
 			return true;
 		}
 
-		void WorkThread()
+		void AcceptThread()
 		{
 			while (m_IsRunWorkThread)
 			{
@@ -363,7 +387,7 @@ namespace NetLib
 
 				//TODO: 모든 GetQueuedCompletionStatus를 GetQueuedCompletionStatusEx 버전을 사용하도록 변경. 
 				auto result = GetQueuedCompletionStatus(
-					m_hWorkIOCP,
+					m_hAcceptWorkIOCP,
 					&ioSize,
 					reinterpret_cast<PULONG_PTR>(&pConnection),
 					reinterpret_cast<LPOVERLAPPED*>(&pOverlappedEx),
@@ -380,7 +404,44 @@ namespace NetLib
 					continue;
 				}
 
-				if (!result || (0 == ioSize && OperationType::Accept != pOverlappedEx->OverlappedExOperationType))
+				if (result == false)
+				{
+					HandleExceptionWorkThread(pConnection, pOverlappedEx);
+					continue;
+				}
+
+				DoAccept(pConnection);
+			}
+		}
+
+		void WorkThread(int iocpIndex)
+		{
+			while (m_IsRunWorkThread)
+			{
+				DWORD ioSize = 0;
+				OVERLAPPED_EX* pOverlappedEx = nullptr;
+				Connection* pConnection = nullptr;
+
+				//TODO: 모든 GetQueuedCompletionStatus를 GetQueuedCompletionStatusEx 버전을 사용하도록 변경. 
+				auto result = GetQueuedCompletionStatus(
+					m_WrokIOCPList[iocpIndex],
+					&ioSize,
+					reinterpret_cast<PULONG_PTR>(&pConnection),
+					reinterpret_cast<LPOVERLAPPED*>(&pOverlappedEx),
+					INFINITE);
+
+				if (pOverlappedEx == nullptr)
+				{
+					if (WSAGetLastError() != 0 && WSAGetLastError() != WSA_IO_PENDING)
+					{
+						char logmsg[128] = { 0, };
+						sprintf_s(logmsg, "IOCPServer::WorkThread - GetQueuedCompletionStatus(). error:%d", WSAGetLastError());
+						LogFuncPtr((int)LogLevel::Error, logmsg);
+					}
+					continue;
+				}
+
+				if (result == false || (0 == ioSize && OperationType::Recv == pOverlappedEx->OverlappedExOperationType))
 				{
 					HandleExceptionWorkThread(pConnection, pOverlappedEx);
 					continue;
@@ -388,14 +449,14 @@ namespace NetLib
 
 				switch (pOverlappedEx->OverlappedExOperationType)
 				{
-				case OperationType::Accept:
-					DoAccept(pOverlappedEx);
-					break;
 				case OperationType::Recv:
 					DoRecv(pOverlappedEx, ioSize);
 					break;
 				case OperationType::Send:
 					DoSend(pOverlappedEx, ioSize);
+					break;
+				case OperationType::DisConnect:
+					pConnection->CloseComplete();
 					break;
 				}
 			}
@@ -445,39 +506,12 @@ namespace NetLib
 				break;
 			}
 
-			if (pConnection->CloseComplete())
-			{
-				HandleExceptionCloseConnection(pConnection);
-			}
-
+			pConnection->CloseComplete();
 			return;
 		}
-				
-		void HandleExceptionCloseConnection(Connection* pConnection)
+	
+		void DoAccept(Connection* pConnection)
 		{
-			if (pConnection == nullptr)
-			{
-				return;
-			}
-									
-			pConnection->DisconnectConnection();
-
-			pConnection->SetNetStateDisConnection();
-						
-			if (PostNetMessage(pConnection, pConnection->GetCloseMsg()) != NetResult::Success)
-			{
-				pConnection->ResetConnection();
-			}
-		}
-
-		void DoAccept(const OVERLAPPED_EX* pOverlappedEx)
-		{
-			auto pConnection = GetConnection(pOverlappedEx->ConnectionIndex);
-			if (pConnection == nullptr)
-			{
-				return;
-			}
-
 			pConnection->DecrementAcceptIORefCount();
 
 			if (pConnection->SetNetAddressInfo() == false)
@@ -486,22 +520,10 @@ namespace NetLib
 				sprintf_s(logmsg, "IOCPServer::DoAccept - GetAcceptExSockaddrs(). error:%d", WSAGetLastError());
 				LogFuncPtr((int)LogLevel::Error, logmsg);
 
-				if (pConnection->CloseComplete())
-				{
-					HandleExceptionCloseConnection(pConnection);
-				}
+				pConnection->CloseComplete();
 				return;
 			}
 		
-			if (!pConnection->BindIOCP(m_hWorkIOCP))
-			{
-				if (pConnection->CloseComplete())
-				{
-					HandleExceptionCloseConnection(pConnection);
-				}
-				return;
-			}
-
 			pConnection->SetNetStateConnection();
 			
 			auto result = pConnection->PostRecv(pConnection->RecvBufferBeginPos(), 0);
@@ -511,13 +533,13 @@ namespace NetLib
 				sprintf_s(logmsg, "IOCPServer::PostRecv. Call pConnection->PostRecv. error:%d", WSAGetLastError());
 				LogFuncPtr((int)LogLevel::Error, logmsg);
 				
-				HandleExceptionCloseConnection(pConnection);
+				pConnection->CloseComplete();
 				return;
 			}
 
 			if (PostNetMessage(pConnection, pConnection->GetConnectionMsg()) != NetResult::Success)
 			{
-				pConnection->DisconnectConnection();
+				pConnection->CloseComplete();
 				pConnection->ResetConnection();
 				return;
 			}
@@ -543,10 +565,7 @@ namespace NetLib
 
 			if (pConnection->PostRecv(pNext, remainByte) != NetResult::Success)
 			{
-				if (pConnection->CloseComplete())
-				{
-					HandleExceptionCloseConnection(pConnection);
-				}
+				pConnection->CloseComplete();
 			}
 		}
 
@@ -574,10 +593,7 @@ namespace NetLib
 					char logmsg[128] = { 0, }; sprintf_s(logmsg, "IOCPServer::DoRecv. Arrived Wrong Packet.");
 					LogFuncPtr((int)LogLevel::Error, logmsg);
 
-					if (pConnection->CloseComplete())
-					{
-						HandleExceptionCloseConnection(pConnection);
-					}
+					pConnection->DisConnectAsync();
 					return;
 				}
 
@@ -648,10 +664,7 @@ namespace NetLib
 					sprintf_s(logmsg, "IOCPServer::DoSend. WSASend. error:%d", WSAGetLastError());
 					LogFuncPtr((int)LogLevel::Error, logmsg);
 
-					if (pConnection->CloseComplete())
-					{
-						HandleExceptionCloseConnection(pConnection);
-					}
+					pConnection->DisConnectAsync();
 					return;
 				}
 			}
@@ -663,15 +676,12 @@ namespace NetLib
 				
 				if (pConnection->PostSend(0) == false)
 				{
-					if (pConnection->CloseComplete())
-					{
-						HandleExceptionCloseConnection(pConnection);
-					}
+					pConnection->DisConnectAsync();
 				}
 			}
 		}
 
-		void DoPostConnection(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex)
+		void ForwardingNetOnConnectMsg(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex)
 		{
 			if (pConnection->IsConnect() == false)
 			{
@@ -686,7 +696,7 @@ namespace NetLib
 			LogFuncPtr((int)LogLevel::Debug, logmsg);
 		}
 
-		void DoPostClose(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex)
+		void ForwardingNetOnDisConnectMsg(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex)
 		{
 			msgOperationType = (INT8)pMsg->Type;
 			connectionIndex = pConnection->GetIndex();
@@ -695,10 +705,11 @@ namespace NetLib
 			sprintf_s(logmsg, "IOCPServer::DoPostClose. Disconnect Connection. Index:%d", pConnection->GetIndex());
 			LogFuncPtr((int)LogLevel::Debug, logmsg);
 
+			//TODO 여기서 비동기 Accept 요청을 하면 안된다
 			pConnection->ResetConnection();
 		}
 
-		void DoPostRecvPacket(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex, char* pBuf, OUT INT16& copySize, const DWORD ioSize)
+		void ForwardingNetOnRecvMsg(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex, char* pBuf, OUT INT16& copySize, const DWORD ioSize)
 		{
 			if (pMsg->pContents == nullptr)
 			{
@@ -716,6 +727,18 @@ namespace NetLib
 			m_Performance.get()->IncrementPacketProcessCount();
 		}
 
+		int ConnectionWorkIOCPIndex(const int connectionIndex, const int ioThreadCount, const int connectionCount)
+		{
+			auto ConnectionsPerThread = connectionCount / ioThreadCount;
+			auto iocpIndex = connectionIndex / ConnectionsPerThread;
+
+			if (iocpIndex >= ioThreadCount)
+			{
+				--iocpIndex;
+			}
+
+			return iocpIndex;
+		}
 
 	private:
 		NetConfig m_NetConfig;
@@ -724,11 +747,14 @@ namespace NetLib
 
 		std::vector<Connection*> m_Connections;
 			
-		HANDLE m_hWorkIOCP = INVALID_HANDLE_VALUE;
+		std::vector<HANDLE> m_WrokIOCPList;
+		HANDLE m_hAcceptWorkIOCP = INVALID_HANDLE_VALUE;
+		
 		HANDLE m_hLogicIOCP = INVALID_HANDLE_VALUE;
 
 		bool m_IsRunWorkThread = true;
-		std::vector<std::unique_ptr<std::thread>> m_WorkThreads;
+		std::thread m_AccetpThread;
+		std::vector<std::thread> m_WorkThreads;
 
 		std::unique_ptr<MessagePool> m_pMsgPool;
 

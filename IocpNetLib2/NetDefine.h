@@ -48,6 +48,7 @@ namespace NetLib
 		Send,
 		Recv,
 		Accept,
+		DisConnect
 	};
 
 	struct OVERLAPPED_EX
@@ -62,8 +63,8 @@ namespace NetLib
 		char* pOverlappedExSocketMessage;
 
 		INT32 ConnectionIndex = 0;
-		//TODO ConnectionUnique 추가하자
-
+		UINT64 ConnectionUniqueId = 0;
+		
 		OVERLAPPED_EX(INT32 connectionIndex)
 		{
 			ZeroMemory(this, sizeof(OVERLAPPED_EX));
