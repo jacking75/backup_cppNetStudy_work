@@ -4,10 +4,7 @@
 
 #include "RoomManager.h"
 
-//namespace NetLib
-//{
-//	class IOCPServerNet;
-//}
+
 
 namespace ChatServerLib
 {

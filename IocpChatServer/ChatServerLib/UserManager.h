@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 
+#include "ErrorCode.h"
 #include "User.h"
 
 
@@ -14,44 +15,45 @@ namespace ChatServerLib
 		UserManager() = default;
 		~UserManager() = default;
 
-		void Init()
+		void Init(const INT32 maxUserCount)
 		{
-			UserObjPool = std::vector<User*>(MAX_USER_CNT);
+			m_MaxUserCnt = maxUserCount;
+			UserObjPool = std::vector<User*>(m_MaxUserCnt);
 
-			for (int i = 0; i < MAX_USER_CNT; i++)
+			for (auto i = 0; i < m_MaxUserCnt; i++)
 			{
 				UserObjPool[i] = new User();
 				UserObjPool[i]->Init(i);
 			}
 		}
 
-		int GetCurrentUserCnt() { return current_user_cnt; } 
+		INT32 GetCurrentUserCnt() { return m_CurrentUserCnt; }
 
-		int GetMaxUserCnt() { return MAX_USER_CNT; }
+		INT32 GetMaxUserCnt() { return m_MaxUserCnt; }
 		
-		void IncreaseUserCnt() { current_user_cnt++; }
+		void IncreaseUserCnt() { m_CurrentUserCnt++; }
 		
 		void DecreaseUserCnt() 
 		{
-			if (current_user_cnt > 0) 
+			if (m_CurrentUserCnt > 0) 
 			{
-				current_user_cnt--;
+				m_CurrentUserCnt--;
 			}
 		}
 
-		int AddUser(char* userID, int conn_idx)
+		Common::ERROR_CODE AddUser(char* userID, int conn_idx)
 		{
 			//TODO 최흥배 유저 중복 조사하기
 
-			int user_idx = conn_idx;
+			auto user_idx = conn_idx;
 
-			UserObjPool[user_idx]->SetLogin(conn_idx, userID);
+			UserObjPool[user_idx]->SetLogin(userID);
 			UserDictionary.insert(std::pair< char*, int>(userID, conn_idx));
 
-			return 0;
+			return Common::ERROR_CODE::NONE;
 		}
 		
-		int FindUserByID(char* userID)
+		INT32 FindUserIndexByID(char* userID)
 		{
 			if (auto res = UserDictionary.find(userID); res != UserDictionary.end())
 			{
@@ -74,8 +76,8 @@ namespace ChatServerLib
 
 
 	private:
-		const int MAX_USER_CNT = 1024; //TODO 최흥배 이 값은 하드코딩이 아닌 외부에서 값을 받도록 한다
-		int current_user_cnt = 0; //TODO 최흥배 코딩 룰에 맞게 이름 바꾸기
+		INT32 m_MaxUserCnt = 0;
+		INT32 m_CurrentUserCnt = 0;
 
 		std::vector<User*> UserObjPool; //vector로
 		std::unordered_map<std::string, int> UserDictionary;

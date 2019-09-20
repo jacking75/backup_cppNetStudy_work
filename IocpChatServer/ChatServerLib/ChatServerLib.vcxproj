@@ -133,10 +133,10 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="PacketManager.cpp" />
     <ClCompile Include="Room.cpp" />
-    <ClCompile Include="User.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Define.h" />
+    <ClInclude Include="ErrorCode.h" />
     <ClInclude Include="flags.h" />
     <ClInclude Include="Main.h" />
     <ClInclude Include="Packet.h" />

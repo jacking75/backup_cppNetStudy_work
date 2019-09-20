@@ -61,7 +61,7 @@ namespace ChatServerLib
 		}
 
 		//여기에서 이미 접속된 유저인지 확인하고, 접속된 유저라면 실패한다.
-		if (m_pUserManager->FindUserByID(pUserID) == -1) 
+		if (m_pUserManager->FindUserIndexByID(pUserID) == -1) 
 		{ 
 			//접속중이 아닌 유저라면
 			//유저를 관리하는 객체에 넣는다.

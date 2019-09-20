@@ -28,7 +28,7 @@ namespace ChatServerLib
 		m_pPacketManager->SendPacketFunc = sendPacketFunc;
 		m_pPacketManager->Init(m_pUserManager.get(), m_pRoomManager.get());
 		
-		m_pUserManager->Init();
+		m_pUserManager->Init(m_Config.MaxConnectionCount);
 
 		m_pRoomManager->SendPacketFunc = sendPacketFunc;
 		m_pRoomManager->Init(m_Config.StartRoomNummber, m_Config.MaxRoomCount, m_Config.MaxRoomUserCount);
@@ -50,10 +50,6 @@ namespace ChatServerLib
 			INT8 operationType = 0;
 			INT32 connectionIndex = 0;
 			INT16 copySize = 0;
-
-			//여기 함수 개선하기(위의 동적할당 계속 되어서)
-
-			//WorkThread의 함수들을 불러와서 처리한다.
 
 			if (m_pIOCPServer->ProcessNetworkMessage(operationType, connectionIndex, pBuf, copySize, waitTimeMillisec) == false)
 			{

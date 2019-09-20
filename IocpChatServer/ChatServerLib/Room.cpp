@@ -10,18 +10,18 @@ namespace ChatServerLib
 		m_MaxUserCount = maxUserCount;
 	}
 
-	INT16 Room::EnterUser(User* pUser) 
+	UINT16 Room::EnterUser(User* pUser) 
 	{
 		if (m_CurrentUserCount >= m_MaxUserCount)
 		{
-			return (INT16)Common::ERROR_CODE::ENTER_ROOM_FULL_USER;
+			return (UINT16)Common::ERROR_CODE::ENTER_ROOM_FULL_USER;
 		}
 				
 		m_UserList.push_back(pUser);
 		++m_CurrentUserCount;
 
 		pUser->EnterRoom(m_RoomNum);
-		return (INT16)Common::ERROR_CODE::NONE;
+		return (UINT16)Common::ERROR_CODE::NONE;
 	}
 
 

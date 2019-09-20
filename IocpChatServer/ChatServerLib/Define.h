@@ -31,12 +31,6 @@ namespace ChatServerLib
 			
 			return netConfig;
 		}
-
-
-
-
-
-
 	};
 
 }

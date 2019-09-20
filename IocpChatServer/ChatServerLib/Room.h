@@ -19,7 +19,7 @@ namespace ChatServerLib
 		
 		INT32 GetRoomNumber() { return m_RoomNum; }
 
-		INT16 EnterUser(User* pUser);
+		UINT16 EnterUser(User* pUser);
 		
 		void LeaveUser(User* pUser);
 						
