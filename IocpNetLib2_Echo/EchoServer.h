@@ -78,7 +78,7 @@ public:
 
 			switch (msgType)
 			{
-			case NetLib::MessageType::Connection:
+			case NetLib::MessageType::Connection:				
 				printf("On Connect %d\n", connectionIndex);
 				break;
 			case NetLib::MessageType::Close:

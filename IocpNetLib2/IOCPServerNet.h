@@ -15,18 +15,22 @@
 #include "MessagePool.h"
 #include "MiniDump.h"
 
+// 코어수 이상의 iocp 객체를 가지고 각 객체는 특정 IOCP에서만 처리되도록 한다.
+// 이렇게 해서 세션은 멀티스레드 세이프하게 동작하도록 한다.
+
 namespace NetLib
 {
 	//TODO 모든 세션을 주기적으로 조사 기능 구현하기
 	// - 연결이 끊어졌는데 재 사용하고 있는지 조사하기
+	// - PostQueuedCompletionStatus가 실패 했을 때 뒤에서 관련 에러를 복구하는 기능이 필요
 	
-	//TODO 코어수 이상의 iocp 객체를 가지고 각 객체별 접근은 1스래드로 한다
-
-	//TODO 보내기도 POstQuerue를 사용하여 해당 워크 스레드에서 처리하도록 한다.
+	//TODO 보내기도 PostQueuedCompletionStatus를 사용하여 해당 워크 스레드에서 처리하도록 한다.
+	// 애플리케이션에서 Send를 호출하면 버퍼에 복사 후 PostQueuedCompletionStatus로 세션에 연결된 IOCP로 메시지를 보내고 여기서 WSASend를 호출하도록 한다.
 
 	//TODO iocp 스레드는 무한 대기하지 않고 쓰기 간격만큼 깨어난다(?)
 	// acceptThread는 특정 간격마다 종료된 세션을 비동기 accept 호출한다
 	// workThread는 특정 간격마다 보내기 처리를 한다.
+	// !! 아니다 해당 iocp 스레드에 postQueue를 보내서 처리하도록 한다. 즉 스레드가 메시지가 있을 때까지 깨어나지 않도록 한다. 앗 그러나 accept의 경우 특정 시간이 지난 후 처리하고 싶기 때문에 메시지 전달로 하기는 힘들듯
 	
 
 	
@@ -153,31 +157,38 @@ namespace NetLib
 			{
 				waitTime = INFINITE;
 			}
-			auto result = GetQueuedCompletionStatus(
+			
+			if(auto result = GetQueuedCompletionStatus(
 				m_hLogicIOCP,
 				&ioSize,
 				reinterpret_cast<PULONG_PTR>(&pConnection),
 				reinterpret_cast<LPOVERLAPPED*>(&pMsg),
-				waitTime);
-
-			if (result == false)
+				waitTime); result == false)
 			{
 				return false;
 			}
 
-			//TODO 이름(혹은 행동) 바꾸기  
-			// DoPostConnection, DoPostClose
 			switch (pMsg->Type)
 			{
 			case MessageType::Connection:
-				ForwardingNetOnConnectMsg(pConnection, pMsg, msgOperationType, connectionIndex);
+			{
+				msgOperationType = (INT8)pMsg->Type;
+				connectionIndex = pConnection->GetIndex();
+			}
 				break;
 			case MessageType::Close:
-				ForwardingNetOnDisConnectMsg(pConnection, pMsg, msgOperationType, connectionIndex);
+			{
+				msgOperationType = (INT8)pMsg->Type;
+				connectionIndex = pConnection->GetIndex();
+
+				pConnection->ResetConnection();
+			}
 				break;
 			case MessageType::OnRecv:
-				ForwardingNetOnRecvMsg(pConnection, pMsg, msgOperationType, connectionIndex, pBuf, copySize, ioSize);
+			{
+				ForwardingNetOnRecvMsgToAppLayer(pConnection, pMsg, msgOperationType, connectionIndex, pBuf, copySize, ioSize);
 				m_pMsgPool->DeallocMsg(pMsg);
+			}
 				break;
 			}
 						
@@ -406,7 +417,7 @@ namespace NetLib
 
 				if (result == false)
 				{
-					HandleExceptionWorkThread(pConnection, pOverlappedEx);
+					ConnectionCloseComplete(pConnection, false);
 					continue;
 				}
 
@@ -429,7 +440,7 @@ namespace NetLib
 					reinterpret_cast<PULONG_PTR>(&pConnection),
 					reinterpret_cast<LPOVERLAPPED*>(&pOverlappedEx),
 					INFINITE);
-
+								
 				if (pOverlappedEx == nullptr)
 				{
 					if (WSAGetLastError() != 0 && WSAGetLastError() != WSA_IO_PENDING)
@@ -443,7 +454,7 @@ namespace NetLib
 
 				if (result == false || (0 == ioSize && OperationType::Recv == pOverlappedEx->OverlappedExOperationType))
 				{
-					HandleExceptionWorkThread(pConnection, pOverlappedEx);
+					ConnectionCloseComplete(pConnection, true);
 					continue;
 				}
 
@@ -456,12 +467,34 @@ namespace NetLib
 					DoSend(pOverlappedEx, ioSize);
 					break;
 				case OperationType::DisConnect:
-					pConnection->CloseComplete();
+					ConnectionCloseComplete(pConnection, true);
 					break;
 				}
 			}
 		}
 
+		void ConnectionCloseComplete(Connection* pConnection, bool isForwardingToAppLayer)
+		{
+			pConnection->Close();
+
+			if (isForwardingToAppLayer == false)
+			{
+				pConnection->ResetConnection();
+				return;
+			}
+
+			if (PostNetMessage(pConnection, pConnection->GetCloseMsg()) != NetResult::Success)
+			{
+				//TODO 중요
+				//아주아주 낮은 확률이지만 살패가 발생할 수도 있다. 
+				//이런 경우는 애플리케이션 측에서 끊어진 세션에 대한 통보를 받지 못한 세션에 새로운 연결 메시지를 받으면 이전 세션을 끊어짐 처리를 하고, 새로운 연결도 일단 끊도록 한다
+				// ResetConnection() 호출을 여기서 하면 위험해질 수 있다
+				pConnection->ResetConnection();
+			}
+		}
+
+		//TODO PostNetMessage 호출이 실패한 경우 어떻게 처리할지 이 함수를 호출한 곳에서 적적할게 구현해야 한다.
+		// Recv 메시지에 대해서는 에러 처리 하지 않아도 될듯. 이 경우 아마 클라이언트가 접속을 짜를듯
 		NetResult PostNetMessage(Connection* pConnection, Message* pMsg, const DWORD packetSize = 0)
 		{
 			if (m_hLogicIOCP == INVALID_HANDLE_VALUE || pMsg == nullptr)
@@ -469,6 +502,8 @@ namespace NetLib
 				return NetResult::fail_message_null;
 			}
 
+			// Boost.Asio의 경우 다른 식으로 오류에 대해 방어하고 있다. 참고하자
+			//https://www.boost.org/doc/libs/1_67_0/boost/asio/detail/impl/win_iocp_io_context.ipp
 			auto result = PostQueuedCompletionStatus(
 				m_hLogicIOCP,
 				packetSize,
@@ -484,48 +519,37 @@ namespace NetLib
 			}
 			return NetResult::Success;
 		}
-
-		void HandleExceptionWorkThread(Connection* pConnection, const OVERLAPPED_EX* pOverlappedEx)
-		{
-			if (pOverlappedEx == nullptr)
-			{
-				return;
-			}
-						
-			//Connection 접속 종료 시 남은 IO 처리
-			switch (pOverlappedEx->OverlappedExOperationType)
-			{
-			case OperationType::Accept:
-				pConnection->DecrementAcceptIORefCount();
-				break;
-			case OperationType::Recv:
-				pConnection->DecrementRecvIORefCount();
-				break;
-			case OperationType::Send:
-				pConnection->DecrementSendIORefCount();
-				break;
-			}
-
-			pConnection->CloseComplete();
-			return;
-		}
-	
+				
 		void DoAccept(Connection* pConnection)
 		{
-			pConnection->DecrementAcceptIORefCount();
-
 			if (pConnection->SetNetAddressInfo() == false)
 			{
 				char logmsg[128] = { 0, };
 				sprintf_s(logmsg, "IOCPServer::DoAccept - GetAcceptExSockaddrs(). error:%d", WSAGetLastError());
 				LogFuncPtr((int)LogLevel::Error, logmsg);
 
-				pConnection->CloseComplete();
+				ConnectionCloseComplete(pConnection, false);
+				pConnection->ResetConnection();
 				return;
 			}
 		
+			if (pConnection->BindIOCP() == false)
+			{
+				ConnectionCloseComplete(pConnection, false);
+				pConnection->ResetConnection();
+				return;
+			}
+
+
 			pConnection->SetNetStateConnection();
 			
+			if (PostNetMessage(pConnection, pConnection->GetConnectionMsg()) != NetResult::Success)
+			{
+				ConnectionCloseComplete(pConnection, false);
+				pConnection->ResetConnection();
+				return;
+			}
+
 			auto result = pConnection->PostRecv(pConnection->RecvBufferBeginPos(), 0);
 			if (result != NetResult::Success)
 			{
@@ -533,16 +557,9 @@ namespace NetLib
 				sprintf_s(logmsg, "IOCPServer::PostRecv. Call pConnection->PostRecv. error:%d", WSAGetLastError());
 				LogFuncPtr((int)LogLevel::Error, logmsg);
 				
-				pConnection->CloseComplete();
+				ConnectionCloseComplete(pConnection, true);
 				return;
-			}
-
-			if (PostNetMessage(pConnection, pConnection->GetConnectionMsg()) != NetResult::Success)
-			{
-				pConnection->CloseComplete();
-				pConnection->ResetConnection();
-				return;
-			}
+			}			
 		}
 
 		void DoRecv(OVERLAPPED_EX* pOverlappedEx, const DWORD ioSize)
@@ -552,24 +569,22 @@ namespace NetLib
 			{
 				return;
 			}
-
-			pConnection->DecrementRecvIORefCount();
-			
+						
 			pOverlappedEx->OverlappedExWsaBuf.buf = pOverlappedEx->pOverlappedExSocketMessage;
 			pOverlappedEx->OverlappedExRemainByte += ioSize;
 												
 			auto remainByte = pOverlappedEx->OverlappedExRemainByte;
 			auto pNext = pOverlappedEx->OverlappedExWsaBuf.buf;
 			
-			PacketForwardingLoop(pConnection, remainByte, pNext);
+			RequestPacketForwardingLoop(pConnection, remainByte, pNext);
 
 			if (pConnection->PostRecv(pNext, remainByte) != NetResult::Success)
 			{
-				pConnection->CloseComplete();
+				pConnection->DisConnectAsync();
 			}
 		}
 
-		void PacketForwardingLoop(Connection* pConnection, DWORD& remainByte, char* pBuffer)
+		void RequestPacketForwardingLoop(Connection* pConnection, DWORD& remainByte, char* pBuffer)
 		{
 			//TODO 패킷 분해 부분을 가상 함수로 만들기 
 
@@ -629,17 +644,12 @@ namespace NetLib
 			{
 				return;
 			}
-
-			
-			pConnection->DecrementSendIORefCount();
-
+									
 			pOverlappedEx->OverlappedExRemainByte += ioSize;
 
 			//모든 메세지 전송하지 못한 상황
 			if (static_cast<DWORD>(pOverlappedEx->OverlappedExTotalByte) > pOverlappedEx->OverlappedExRemainByte)
 			{
-				pConnection->IncrementSendIORefCount();
-
 				pOverlappedEx->OverlappedExWsaBuf.buf += ioSize;
 				pOverlappedEx->OverlappedExWsaBuf.len -= ioSize;
 
@@ -658,8 +668,6 @@ namespace NetLib
 
 				if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
 				{
-					pConnection->DecrementSendIORefCount();
-
 					char logmsg[128] = { 0, };
 					sprintf_s(logmsg, "IOCPServer::DoSend. WSASend. error:%d", WSAGetLastError());
 					LogFuncPtr((int)LogLevel::Error, logmsg);
@@ -680,36 +688,8 @@ namespace NetLib
 				}
 			}
 		}
-
-		void ForwardingNetOnConnectMsg(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex)
-		{
-			if (pConnection->IsConnect() == false)
-			{
-				return;
-			}
-
-			msgOperationType = (INT8)pMsg->Type;
-			connectionIndex = pConnection->GetIndex();
-
-			char logmsg[128] = { 0, };
-			sprintf_s(logmsg, "IOCPServer::DoPostConnection. Connect Connection. Index:%d", pConnection->GetIndex());
-			LogFuncPtr((int)LogLevel::Debug, logmsg);
-		}
-
-		void ForwardingNetOnDisConnectMsg(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex)
-		{
-			msgOperationType = (INT8)pMsg->Type;
-			connectionIndex = pConnection->GetIndex();
-
-			char logmsg[128] = { 0, };
-			sprintf_s(logmsg, "IOCPServer::DoPostClose. Disconnect Connection. Index:%d", pConnection->GetIndex());
-			LogFuncPtr((int)LogLevel::Debug, logmsg);
-
-			//TODO 여기서 비동기 Accept 요청을 하면 안된다
-			pConnection->ResetConnection();
-		}
-
-		void ForwardingNetOnRecvMsg(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex, char* pBuf, OUT INT16& copySize, const DWORD ioSize)
+							
+		void ForwardingNetOnRecvMsgToAppLayer(Connection* pConnection, const Message* pMsg, OUT INT8& msgOperationType, OUT INT32& connectionIndex, char* pBuf, OUT INT16& copySize, const DWORD ioSize)
 		{
 			if (pMsg->pContents == nullptr)
 			{

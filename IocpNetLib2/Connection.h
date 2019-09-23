@@ -11,15 +11,9 @@
 #include "NetDefine.h"
 
 
+
 namespace NetLib
-{	
-	//TODO lock 방법 수정하기 
-	//세션의 send,recv는 스레드 세이프 하다. 
-	//IOCP 스레드가 아닌 곳에서 close 하는 경우는 스레드 세이프하도록 IOCP에 메시지를 보내서 접속을 끊도록 한다
-
-	//void NetResult ResetConnection()
-	//bool BindIOCP(const HANDLE hWorkIOCP)
-
+{			
 	class Connection
 	{
 	public:	
@@ -38,7 +32,10 @@ namespace NetLib
 
 		HANDLE GetIOCPHandle() { return m_hIOCP; }
 
-		void SetNetStateConnection() { InterlockedExchange(reinterpret_cast<LPLONG>(&m_IsConnect), TRUE); }
+		void SetNetStateConnection() 
+		{ 
+			InterlockedExchange(reinterpret_cast<LPLONG>(&m_IsConnect), TRUE); 
+		}
 
 		BOOL SetNetStateDisConnection() { return InterlockedCompareExchange(reinterpret_cast<LPLONG>(&m_IsConnect), FALSE, TRUE); }
 
@@ -74,22 +71,14 @@ namespace NetLib
 			BindAcceptExSocket();
 		}
 						
-		//TODO 코드 수정 확인: IOCP 스레드에서 호출할 때만 가능하다.  반환 값은 void로 한다
-		// 파라미터로 close 메시지 보낼지 말지 알려준다
-		bool CloseComplete()
+		//TODO 코드 수정 확인: IOCP 스레드에서 호출할 때만 가능하다.
+		void Close()
 		{			
 			if (m_ClientSocket != INVALID_SOCKET)
 			{
 				closesocket(m_ClientSocket);
 				m_ClientSocket = INVALID_SOCKET;
-			}
-
-			//TODO 아래 함수 호출해야 한다
-			/*if (PostNetMessage(pConnection, pConnection->GetCloseMsg()) != NetResult::Success)
-			{
-				pConnection->ResetConnection();
-			}*/
-			return false;
+			}			
 		}
 		
 		void DisConnectAsync()
@@ -115,8 +104,7 @@ namespace NetLib
 					
 		NetResult ResetConnection()
 		{
-			std::lock_guard<std::mutex> Lock(m_MUTEX);
-
+			//TODO 인자를 받아서 바로 여기서 아래 코드를 실행하거나 혹은 Accept스레드에 Accept 요청을 하도록 한다
 			m_pRecvOverlappedEx->OverlappedExRemainByte = 0;
 			m_pRecvOverlappedEx->OverlappedExTotalByte = 0;
 			m_pSendOverlappedEx->OverlappedExRemainByte = 0;
@@ -127,9 +115,7 @@ namespace NetLib
 		}
 		
 		bool BindIOCP()
-		{
-			std::lock_guard<std::mutex> Lock(m_MUTEX);
-
+		{			
 			//즉시 접속 종료하기 위한 소켓 옵션 추가
 			linger li = { 0, 0 };
 			li.l_onoff = 1;
@@ -171,9 +157,7 @@ namespace NetLib
 			m_pRecvOverlappedEx->pOverlappedExSocketMessage = m_pRecvOverlappedEx->OverlappedExWsaBuf.buf - remainByte;
 
 			ZeroMemory(&m_pRecvOverlappedEx->Overlapped, sizeof(OVERLAPPED));
-
-			IncrementRecvIORefCount();
-
+						
 			DWORD flag = 0;
 			DWORD recvByte = 0;
 			auto result = WSARecv(
@@ -185,9 +169,9 @@ namespace NetLib
 				&m_pRecvOverlappedEx->Overlapped,
 				NULL);
 
+			// 에러가 WSA_IO_PENDING인 경우는 나중에 완료 통보가 온다
 			if (result == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING)
 			{
-				DecrementRecvIORefCount();
 				return NetResult::PostRecv_Null_Socket_Error;
 			}
 
@@ -221,9 +205,7 @@ namespace NetLib
 				m_pSendOverlappedEx->OverlappedExRemainByte = 0;
 				m_pSendOverlappedEx->OverlappedExTotalByte = reservedSize;
 				m_pSendOverlappedEx->OverlappedExOperationType = OperationType::Send;
-
-				IncrementSendIORefCount();
-
+								
 				DWORD flag = 0;
 				DWORD sendByte = 0;
 				auto result = WSASend(
@@ -237,7 +219,6 @@ namespace NetLib
 
 				if (result == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING)
 				{
-					DecrementSendIORefCount();
 					return false;					
 				}
 			}
@@ -260,14 +241,7 @@ namespace NetLib
 
 			return NetResult::Success;
 		}
-		
-		void IncrementRecvIORefCount() { InterlockedIncrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
-		void IncrementSendIORefCount() { InterlockedIncrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
-		void IncrementAcceptIORefCount() { ++m_AcceptIORefCount; }
-		void DecrementRecvIORefCount() { InterlockedDecrement(reinterpret_cast<LPLONG>(&m_RecvIORefCount)); }
-		void DecrementSendIORefCount() { InterlockedDecrement(reinterpret_cast<LPLONG>(&m_SendIORefCount)); }
-		void DecrementAcceptIORefCount() { --m_AcceptIORefCount; }
-				
+						
 		bool SetNetAddressInfo()
 		{
 			SOCKADDR* pLocalSockAddr = nullptr;
@@ -318,12 +292,7 @@ namespace NetLib
 			m_RingSendBuffer.Init();
 
 			m_IsConnect = FALSE;
-			m_IsClosed = FALSE;
 			m_IsSendable = TRUE;
-
-			m_SendIORefCount = 0;
-			m_RecvIORefCount = 0;
-			m_AcceptIORefCount = 0;
 		}
 		
 		NetResult BindAcceptExSocket()
@@ -342,10 +311,9 @@ namespace NetLib
 				return NetResult::BindAcceptExSocket_fail_WSASocket;
 			}
 
-			IncrementAcceptIORefCount();
-
+			
 			DWORD acceptByte = 0;
-			auto result = AcceptEx(
+			if(auto result = AcceptEx(
 				m_ListenSocket,
 				m_ClientSocket,
 				m_pRecvOverlappedEx->OverlappedExWsaBuf.buf,
@@ -353,12 +321,9 @@ namespace NetLib
 				sizeof(SOCKADDR_IN) + 16,
 				sizeof(SOCKADDR_IN) + 16,
 				&acceptByte,
-				reinterpret_cast<LPOVERLAPPED>(m_pRecvOverlappedEx));
-
-			if (!result && WSAGetLastError() != WSA_IO_PENDING)
+				reinterpret_cast<LPOVERLAPPED>(m_pRecvOverlappedEx)); 
+				!result && WSAGetLastError() != WSA_IO_PENDING )
 			{
-				DecrementAcceptIORefCount();
-
 				return NetResult::BindAcceptExSocket_fail_AcceptEx;
 			}
 
@@ -368,15 +333,13 @@ namespace NetLib
 
 	private:
 		INT32 m_Index = INVALID_VALUE;		
-		UINT64 m_UniqueId = 0; //TODO 만약 사용 안하면 삭제하기
+		UINT64 m_UniqueId = 0; //TODO 만약 사용 할 필요가 없으면 삭제하기
 				
 		HANDLE m_hIOCP = INVALID_HANDLE_VALUE;
 
 		SOCKET m_ClientSocket = INVALID_SOCKET;
 		SOCKET m_ListenSocket = INVALID_SOCKET;
-
-		std::mutex m_MUTEX;
-
+				
 		//TODO 정적 할당으로 바꾼다
 		OVERLAPPED_EX* m_pRecvOverlappedEx = nullptr;
 		OVERLAPPED_EX* m_pSendOverlappedEx = nullptr;
@@ -387,20 +350,15 @@ namespace NetLib
 
 		char m_AddrBuf[MAX_ADDR_LENGTH] = { 0, };
 
-		BOOL m_IsClosed = FALSE;
 		BOOL m_IsConnect = FALSE;
-		BOOL m_IsSendable = TRUE;
 
+		BOOL m_IsSendable = TRUE;
+				
 		INT32	m_RecvBufSize = INVALID_VALUE;
 		INT32	m_SendBufSize = INVALID_VALUE;
 				
 		char m_szIP[MAX_IP_LENGTH] = { 0, };
-
-		//TODO 아래 함수를 제거하여 IO 에러가 발생해서 접속을 짤라야하면 바로 짜를 수 있도록 하자
-		DWORD m_SendIORefCount = 0; 
-		DWORD m_RecvIORefCount = 0; 
-		std::atomic<short> m_AcceptIORefCount = 0;
-		
+				
 		Message m_ConnectionMsg;
 		Message m_CloseMsg;
 	};
