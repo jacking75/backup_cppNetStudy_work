@@ -47,14 +47,12 @@ namespace NCommon
 	//- 이동 (화면 위치 찍기, 항후 키보드 이동)
 	//- 점프
 	//- 춤추기 (?)
-	/*
+	
 	//- 룸에 들어가기 요청
 	const int MAX_ROOM_TITLE_SIZE = 16;
 	struct PktRoomEnterReq
 	{
-		bool IsCreate;
-		short RoomIndex;
-		wchar_t RoomTitle[MAX_ROOM_TITLE_SIZE + 1];
+		short RoomNum;
 	};
 
 	struct PktRoomEnterRes : PktBase
@@ -116,7 +114,8 @@ namespace NCommon
 		char UserID[MAX_USER_ID_SIZE + 1] = { 0, };
 		wchar_t Msg[MAX_LOBBY_CHAT_MSG_SIZE + 1] = { 0, };
 	};
-
+	
+	/*
 
 	// 방장의 게임 시작 요청
 	struct PktRoomMaterGameStartReq
