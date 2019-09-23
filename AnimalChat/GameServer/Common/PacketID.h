@@ -11,7 +11,10 @@ namespace NCommon
 		SEL_CHARECTER_REQ = 26,
 		SEL_CHARECTER_RES = 27,
 		
-		
+
+
+		ROOM_LIST_REQ = 51,
+		ROOM_LIST_RES = 52,
 		
 		ROOM_ENTER_REQ = 61,
 		ROOM_ENTER_RES = 62,
