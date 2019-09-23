@@ -48,8 +48,24 @@ namespace NCommon
 	//- 점프
 	//- 춤추기 (?)
 	
-	//- 룸에 들어가기 요청
+	// 방 리스트 요청
 	const int MAX_ROOM_TITLE_SIZE = 16;
+	struct PktRoomListReq
+	{
+		short Page; // 페이지 네이션 값(0부터 시작)
+	}
+	
+	// 방 리스트 응답
+	struct PktRoomListRes
+	{
+		short NextPage; // 다음 페이지 값, 방이 더 이상 없으면 -1
+		char RoomTitle[MAX_ROOM_TITLE_SIZE + 1] = {0, }; // 방 제목
+		char OwnerID[MAX_USER_ID_SIZE + 1] = {0, }; // 방장 아이디
+		short MaxUserNum; // 최대 입장 수
+		short CurrentUserNum; // 현재 인원 수
+	}
+	
+	//- 룸에 들어가기 요청
 	struct PktRoomEnterReq
 	{
 		short RoomNum;
