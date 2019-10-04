@@ -161,8 +161,16 @@ https://docs.microsoft.com/ko-kr/uwp/toolkits/winui/getting-started
 ## Windows 런타임 ABI란 무엇이며, ABI 형식이란 무엇인가요?
 https://docs.microsoft.com/ko-kr/windows/uwp/cpp-and-winrt-apis/interop-winrt-abi  
   
+  
+
+## WinRT API
+https://docs.microsoft.com/ko-kr/uwp/api/  
+
+### Windows.Data.Json
+https://docs.microsoft.com/en-us/uwp/api/windows.data.json
+
+  
 
 ## 참고 
-- [WinRT API](https://docs.microsoft.com/ko-kr/uwp/api/ )
 - [MS Docs C++/WinRT](https://docs.microsoft.com/ko-kr/windows/uwp/cpp-and-winrt-apis/ )
 - [Meet C++/WinRT 2.0: Faster and smarter in the open(build 2019)](https://mybuild.techcommunity.microsoft.com/sessions/77016?source=sessions  )
