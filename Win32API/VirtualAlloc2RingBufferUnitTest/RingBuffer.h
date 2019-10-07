@@ -110,11 +110,13 @@ private:
 
 		GetSystemInfo(&sysInfo);
 
-		// dwAllocationGranularity: 메모리 할당 단위
-		// 프로세스 주소 공간에서 특정 영역을 예약할 때 사용하는 단위 크기. 65,536 값
-		if ((bufferSize % sysInfo.dwAllocationGranularity) != 0) {
+		//bufferSize의 크기는 페이지 크기의 배수 이어야 한다.
+		// 아래 주석은 dwAllocationGranularity(메모리 할당 단위.프로세스 주소 공간에서 특정 영역을 예약할 때 사용하는 단위 크기. 65,536 값)의 배수가 아니면 실패로 되어 있다.
+		// 이것은 아마 MapViewOfFile 때문인 것 같은데 MapViewOfFile에는 크기가 dwAllocationGranularity의 배수이어야 한다.
+		// 그런데 이 코드에서는 MapViewOfFile3 버전을 사용하기 때문에 dwAllocationGranularity 크기가 아닌 페이지 크기의 배수이면 된다.				
+		/*if ((bufferSize % sysInfo.dwAllocationGranularity) != 0) {
 			return nullptr;
-		}
+		}*/
 
 		//
 		// Reserve a placeholder region where the buffer will be mapped.
