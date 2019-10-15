@@ -54,7 +54,7 @@ struct task_queue_with_allocator
     {
         assert(num_threads >= 1);
         assert(queue_limit >= 1);
-
+		
         setup(num_threads);
     }
 
@@ -127,7 +127,7 @@ struct task_queue_with_allocator
     {
         task_count_lock_t lock(task_count_mutex_);
         scoped_add sa(waiting_count_);
-
+		
         c_task_.wait(lock, [this]{ return task_count_ == 0; });
     }
 
