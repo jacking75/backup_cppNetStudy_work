@@ -48,7 +48,7 @@ public:
 	}
 
 	
-	bool Create(const int ringBufferSize)
+	bool Create(const UINT64 ringBufferSize)
 	{
 		m_RingBufferSize = ringBufferSize;
 		m_pRingBuffer = CreateRingBuffer(m_RingBufferSize, &m_pSecondaryView);
@@ -65,7 +65,7 @@ public:
 
 	
 
-	char* Read(const int reqReadSize)
+	char* Read(const UINT32 reqReadSize)
 	{
 		char* pResult = nullptr;
 		pResult = &m_pRingBuffer[m_ReadPos];
@@ -84,20 +84,20 @@ public:
 		CopyMemory(&m_pRingBuffer[m_WritePos], pData, size);
 		m_WritePos += size;
 
-		if (m_WritePos >= m_RingBufferSize)
+		/*if (m_WritePos >= m_RingBufferSize)
 		{
 			m_WritePos -= m_RingBufferSize;
-		}
+		}*/
 
 		return true;
 	}
 			
 
-	void UnitTest_SetWritePos(UINT32 pos) { m_WritePos = pos; }
-	void UnitTest_SetReadPos(UINT32 pos) { m_ReadPos = pos; }
+	void UnitTest_SetWritePos(UINT64 pos) { m_WritePos = pos; }
+	void UnitTest_SetReadPos(UINT64 pos) { m_ReadPos = pos; }
 
 private:
-	char* CreateRingBuffer(unsigned int bufferSize, _Outptr_ void** secondaryView)
+	char* CreateRingBuffer(UINT64 bufferSize, _Outptr_ void** secondaryView)
 	{
 		BOOL result;
 		HANDLE section = nullptr;
@@ -162,7 +162,7 @@ private:
 			nullptr,
 			PAGE_READWRITE,
 			0,
-			bufferSize, nullptr
+			(DWORD)bufferSize, nullptr
 		);
 
 		if (section == nullptr) {
@@ -265,11 +265,11 @@ private:
 	}
 
 	
-	UINT32 m_RingBufferSize = 0;
+	UINT64 m_RingBufferSize = 0;
 	
 	char* m_pRingBuffer = nullptr;
 	void* m_pSecondaryView = nullptr;
-	UINT32 m_WritePos = 0;
-	UINT32 m_ReadPos = 0;
+	UINT64 m_WritePos = 0;
+	UINT64 m_ReadPos = 0;
 	
 };

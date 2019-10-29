@@ -70,6 +70,34 @@ namespace VirtualAlloc2RingBufferUnitTest
 			Assert::AreEqual(pReadBuf, tempData1);
 		}
 
+		// 위치가 UINT32 보다 큰 경우도 문제 없나?
+		TEST_METHOD(WriteRead_UINT64_Pos)
+		{
+			const UINT32 bufferSize = 4096;
+			RingBuffer rBuffer;
+			auto isResult = rBuffer.Create(bufferSize);
+
+			const UINT32 tempData1Size = 211;
+			char tempData1[tempData1Size] = { 0, };
+			gen_random(tempData1, tempData1Size - 1);
+
+			UINT64 movePos = bufferSize;
+			rBuffer.UnitTest_SetWritePos(movePos);
+			isResult = rBuffer.Write(tempData1Size, tempData1);
+			Assert::IsTrue(isResult);
+
+			movePos = (bufferSize * 2) - tempData1Size;
+			rBuffer.UnitTest_SetWritePos(movePos);
+			isResult = rBuffer.Write(tempData1Size, tempData1);
+			Assert::IsTrue(isResult);
+
+			//rBuffer.UnitTest_SetWritePos(movePos);
+			//auto pReadBuf = rBuffer.Read(tempData1Size);
+			//Assert::IsTrue(pReadBuf != nullptr);
+			
+			//Assert::AreEqual(pReadBuf, tempData1);
+		}
+
 		// 쓰고-읽고, 쓰고-읽고
 
 		// 2번 쓰고/읽기
