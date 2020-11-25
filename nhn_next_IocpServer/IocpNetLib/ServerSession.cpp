@@ -54,7 +54,14 @@ bool ServerSession::ConnectRequest()
 
 	OverlappedConnectContext* context = new OverlappedConnectContext(this);
 
-	if (FALSE == ConnectEx(mSocket, (sockaddr*)&serverSockAddr, sizeof(SOCKADDR_IN), NULL, 0, NULL, (LPWSAOVERLAPPED)context))
+	DWORD numBytes = 0;
+	GUID guid = WSAID_CONNECTEX;
+	LPFN_CONNECTEX ConnectExPtr = NULL;
+	int success = ::WSAIoctl(mSocket, SIO_GET_EXTENSION_FUNCTION_POINTER,
+		(void*)&guid, sizeof(guid), (void*)&ConnectExPtr, sizeof(ConnectExPtr),
+		&numBytes, NULL, NULL);
+
+	if (FALSE == ConnectExPtr(mSocket, (sockaddr*)&serverSockAddr, sizeof(SOCKADDR_IN), NULL, 0, NULL, (LPWSAOVERLAPPED)context))
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 		{

@@ -11,29 +11,8 @@
 
 IocpManager* GIocpManager = nullptr;
 
-//LPFN_DISCONNECTEX IocpManager::mFnDisconnectEx = nullptr;
-LPFN_ACCEPTEX IocpManager::mFnAcceptEx = nullptr;
-LPFN_CONNECTEX IocpManager::mFnConnectEx = nullptr;
-
 char IocpManager::mAcceptBuf[64] = { 0, };
 
-
-//BOOL DisconnectEx(SOCKET hSocket, LPOVERLAPPED lpOverlapped, DWORD dwFlags, DWORD reserved)
-//{
-//	return IocpManager::mFnDisconnectEx(hSocket, lpOverlapped, dwFlags, reserved);
-//}
-//
-BOOL AcceptEx(SOCKET sListenSocket, SOCKET sAcceptSocket, PVOID lpOutputBuffer, DWORD dwReceiveDataLength,
-	DWORD dwLocalAddressLength, DWORD dwRemoteAddressLength, LPDWORD lpdwBytesReceived, LPOVERLAPPED lpOverlapped)
-{
-	return IocpManager::mFnAcceptEx(sListenSocket, sAcceptSocket, lpOutputBuffer, dwReceiveDataLength,
-		dwLocalAddressLength, dwRemoteAddressLength, lpdwBytesReceived, lpOverlapped);
-}
-
-BOOL ConnectEx(SOCKET hSocket, const struct sockaddr* name, int namelen, PVOID lpSendBuffer, DWORD dwSendDataLength, LPDWORD lpdwBytesSent, LPOVERLAPPED lpOverlapped)
-{
-	return IocpManager::mFnConnectEx(hSocket, name, namelen, lpSendBuffer, dwSendDataLength, lpdwBytesSent, lpOverlapped);
-}
 
 IocpManager::IocpManager() : mCompletionPort(NULL), mListenSocket(NULL)
 {
@@ -94,26 +73,7 @@ bool IocpManager::Initialize()
 		return false;
 	}
 
-	/*GUID guidDisconnectEx = WSAID_DISCONNECTEX ;
-	DWORD bytes = 0 ;
-	if (SOCKET_ERROR == WSAIoctl(mListenSocket, SIO_GET_EXTENSION_FUNCTION_POINTER, 
-		&guidDisconnectEx, sizeof(GUID), &mFnDisconnectEx, sizeof(LPFN_DISCONNECTEX), &bytes, NULL, NULL) )
-		return false;
-*/
-	DWORD bytes = 0;
-
-	GUID guidAcceptEx = WSAID_ACCEPTEX ;
-	if (SOCKET_ERROR == WSAIoctl(mListenSocket, SIO_GET_EXTENSION_FUNCTION_POINTER,
-		&guidAcceptEx, sizeof(GUID), &mFnAcceptEx, sizeof(LPFN_ACCEPTEX), &bytes, NULL, NULL)) {
-		return false;
-	}
-	
-	GUID guidConnectEx = WSAID_CONNECTEX;
-	if (SOCKET_ERROR == WSAIoctl(mListenSocket, SIO_GET_EXTENSION_FUNCTION_POINTER,
-		&guidConnectEx, sizeof(GUID), &mFnConnectEx, sizeof(LPFN_CONNECTEX), &bytes, NULL, NULL)) {
-		return false;
-	}
-
+		
 	/// make session pool
 	GClientSessionManager->PrepareClientSessions();
 
